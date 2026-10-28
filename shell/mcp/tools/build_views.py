@@ -32,6 +32,16 @@ def _pick(value, choices, field):
     return found
 
 
+MAX_LIMIT = 200  # keeps a tool result well under Claude Code's MCP output limit
+
+
+def _bounded(lines: list[str], limit: int) -> list[str]:
+    limit = max(1, min(limit, MAX_LIMIT))
+    if len(lines) <= limit:
+        return lines
+    return lines[:limit] + [f"… {len(lines) - limit} more (narrow the filters or raise limit)"]
+
+
 def register(mcp: MCPServer, ctx: Context) -> None:
     @tool(mcp)
     @_player_facing
@@ -76,14 +86,17 @@ Arc/Solar/Void/Stasis/Strand/Prismatic."""
     @_player_facing
     def rankings(view: str, type: str | None = None, element: str | None = None, class_type: str | None = None,
                  tag: str | None = None, tier: str | None = None, activity: str | None = None,
-                 name: str | None = None, top: int | None = None) -> list[str]:
+                 name: str | None = None, top: int | None = None, limit: int = 60) -> list[str]:
         """Aegis rankings, one line per entry sorted by tier then rank: tier | name | useful columns.
 view: weapons (filters type, element, tier), exotic-weapons, perks, origin-traits, sets, artifact, subclasses
 (filters class_type, tag, tier), aspects (class_type, element, tier), fragments (element, tier), dps-sustained,
 dps-swap (top, default 20), bosses (activity), name (name: every tab, every column). tier keeps that tier and
-better."""
-        return rankings_mod.rank(view, type=type, element=element, class_type=class_type, tag=tag, tier=tier,
-                                 activity=activity, name=name, top=top)
+better. At most `limit` lines (max 200); narrow the filters rather than raising it."""
+        if view == "name" and len((name or "").strip()) < 3:
+            raise ToolError("the name view needs `name` with at least 3 characters")
+        lines = rankings_mod.rank(view, type=type, element=element, class_type=class_type, tag=tag, tier=tier,
+                                  activity=activity, name=name, top=top)
+        return _bounded(lines, limit)
 
     @tool(mcp)
     @_player_facing
@@ -95,7 +108,7 @@ line: snapshot time. Then: id | name | type | element | slot | ammo | frame | pe
 and the frame. Use weapon_options(item_id) to see every column of one weapon."""
         items, taken = read_snapshot("weapons")
         return [f"snapshot: {taken}", *weapons.candidates(items, weapons.load_grades(), slot, element, type, name,
-                                                          perk, limit)]
+                                                          perk, max(1, min(limit, MAX_LIMIT)))]
 
     @tool(mcp)
     @_player_facing

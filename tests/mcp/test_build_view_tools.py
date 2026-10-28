@@ -108,6 +108,22 @@ def test_rankings(call, root):
         call("rankings", {"view": "nope"})
 
 
+def test_rankings_output_is_bounded(call, root):
+    write_aegis(root / "cache" / "aegis", "endgame", "aspects", [
+        {"_name": f"Aspect {i:03}", "Subclass": "Void", "Class": "T", "#": str(i), "Tier": "S"} for i in range(1, 251)])
+    lines = call("rankings", {"view": "aspects"})
+    assert len(lines) == 61 and lines[-1] == "… 190 more (narrow the filters or raise limit)"
+    assert len(call("rankings", {"view": "aspects", "limit": 1000})) == 201  # capped at 200
+    with pytest.raises(ToolError, match="at least 3 characters"):
+        call("rankings", {"view": "name", "name": "a"})
+
+
+def test_weapon_candidates_limit_capped(call, root):
+    write_weapons(root)
+    from shell.mcp.tools import build_views
+    assert build_views.MAX_LIMIT == 200
+
+
 def write_weapons(root):
     folder = root / "profile" / "inventory"
     folder.mkdir(parents=True)
