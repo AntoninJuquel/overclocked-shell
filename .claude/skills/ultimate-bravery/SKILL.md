@@ -20,7 +20,8 @@ A cursed roll is a good roll; say so with a smile.
 4. **Equip ("let's go"):** follow the `equip-build` skill with slug `bravery` — `check_build`, `equip_plan`, all
    previews, then the writes only after the player's yes. **Skip the lock step** (`set_lock`): random items must not
    end up locked as if they were a build to keep. Refused sockets (a mod that can't sit with another, a plug not
-   unlocked) are normal here: report them and carry on.
+   unlocked) are normal here: report them and carry on. Ignore `equip_plan`'s "free energy … re-optimize" warnings:
+   they are optimizer advice, and a Bravery roll is not optimized on purpose.
 5. **Friends:** to share the same chaos, follow the `share-build` skill with slug `bravery` (DIM link or PDF).
 
 This skill writes only `profile/builds/bravery.*`; everything in game goes through the equip-build previews.
