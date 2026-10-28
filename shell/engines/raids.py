@@ -68,6 +68,8 @@ def check(enc: dict, guides: set[str]) -> list[str]:
     problems += _dupes("spot", [s["id"] for s in enc["spots"]])
     problems += _dupes("role", [r["id"] for r in enc["roles"]])
     problems += _dupes("phase", [p["id"] for p in enc["phases"]])
+    if not enc["phases"]:
+        problems.append("phases: none")
     total = sum(r.get("count", 0) for r in enc["roles"])
     if total != FIRETEAM:
         problems.append(f"roles: counts sum to {total}, not {FIRETEAM}")

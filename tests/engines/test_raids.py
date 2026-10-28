@@ -45,6 +45,7 @@ def test_valid_encounter():
 
 @pytest.mark.parametrize("changes,problem", [
     ({"phases": KeyError}, "missing key: phases"),
+    ({"phases": []}, "phases: none"),
     ({"spots__1__id": "terminal"}, "duplicate spot id: terminal"),
     ({"roles__2__count": 3}, "roles: counts sum to 5, not 6"),
     ({"phases__0__steps__suppressor": ["x"]}, "phase panels: steps for unknown role suppressor"),
