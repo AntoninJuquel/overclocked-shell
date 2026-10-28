@@ -33,3 +33,18 @@ def read_locations(profile: dict, defs: dict) -> tuple[dict[str, dict], dict[str
                 add(item, item["itemInstanceId"], "equipped", cid)
     class_of = {cid: c.get("classType") for cid, c in profile["characters"]["data"].items()}
     return locations, class_of
+
+
+def load_locations(client, defs: dict) -> tuple[dict, dict[str, dict], dict[str, int]]:
+    """(membership, locations, class_of), read fresh: write tools never act on a stale snapshot."""
+    from shell.engines.account import get_profile, primary_membership
+
+    membership = primary_membership(client)
+    return (membership, *read_locations(get_profile(client, membership, LOCATION_COMPONENTS), defs))
+
+
+def bucket_of(defs: dict) -> callable:
+    def bucket(h: int) -> int:
+        weapon = defs["weapons"].get(str(h))
+        return weapon["b"] if weapon else (defs["gear"].get(str(h)) or [0, 0, 0, 0])[3]
+    return bucket

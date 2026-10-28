@@ -44,7 +44,7 @@ def item_name(defs: dict, h) -> str:
     """Any definition's name (artifact perks are indexed as gear, not plugs), `#hash` when unknown."""
     h = str(h)
     found = (defs["weapons"].get(h, {}).get("n") or (defs["gear"].get(h) or [None])[0]
-             or defs["plugs"].get(h, {}).get("n") or defs["misc"].get(h))
+             or defs["plugs"].get(h, {}).get("n") or defs["misc"].get(h) or defs.get("names", {}).get(h))
     return found or f"#{h}"
 
 

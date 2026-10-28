@@ -12,11 +12,11 @@ from shell.core import paths
 GEAR_TYPES = {2, 14, 16, 21, 22, 24, 28}
 MISC_TYPES = {1, 9}
 MISC_BUCKET = 1469714392
-SCHEMA = 1  # bump when build_defs output changes, so existing caches are rebuilt
+SCHEMA = 2  # bump when build_defs output changes, so existing caches are rebuilt
 
 
 def build_defs(items: dict, stats: dict, socket_categories: dict) -> dict:
-    weapons, gear, plugs, misc = {}, {}, {}, {}
+    weapons, gear, plugs, misc, names = {}, {}, {}, {}, {}
     for h, d in items.items():
         name = d.get("displayProperties", {}).get("name")
         if not name:
@@ -35,10 +35,12 @@ def build_defs(items: dict, stats: dict, socket_categories: dict) -> dict:
             misc[h] = name
         elif "plug" in d:
             plugs[h] = {"n": name, "t": type_name or "", "p": d["plug"].get("plugCategoryIdentifier") or ""}
-    names = lambda table: {h: d["displayProperties"]["name"] for h, d in table.items()  # noqa: E731
+        else:
+            names[h] = name  # engrams, packages…: only needed to name postmaster entries
+    display_names = lambda table: {h: d["displayProperties"]["name"] for h, d in table.items()  # noqa: E731
                            if d.get("displayProperties", {}).get("name")}
-    return {"weapons": weapons, "gear": gear, "plugs": plugs, "misc": misc,
-            "stats": names(stats), "socketCategories": names(socket_categories)}
+    return {"weapons": weapons, "gear": gear, "plugs": plugs, "misc": misc, "names": names,
+            "stats": display_names(stats), "socketCategories": display_names(socket_categories)}
 
 
 def load_defs(manifest, cache_dir: Path | None = None) -> dict:

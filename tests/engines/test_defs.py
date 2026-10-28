@@ -85,3 +85,11 @@ def test_context_builds_defs_once_under_parallel_access(tmp_path, monkeypatch):
     with ThreadPoolExecutor(2) as pool:
         a, b = pool.map(lambda _: ctx.defs, range(2))
     assert a is b and len(manifest.calls) == 3
+
+
+def test_unclassified_items_keep_a_name():
+    items = {**ITEMS, "7": {"itemType": 8, "displayProperties": {"name": "Exotic Engram"}, "inventory": {}}}
+    d = build_defs(items, STATS, CATS)
+    assert d["names"] == {"7": "Exotic Engram"}
+    from shell.engines.loadout import item_name
+    assert item_name(d, 7) == "Exotic Engram"
