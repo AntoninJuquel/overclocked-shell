@@ -82,3 +82,77 @@ def armor_rows(profile: dict, defs: dict) -> list[dict]:
             "tunedStat": tuned_stat(_components(profile, "reusablePlugs", item_id), defs),
         })
     return rows
+
+
+WEAPON_SLOTS = {1498876634: "Kinetic", 2465295065: "Energy", 953998645: "Power"}
+AMMO = {1: "Primary", 2: "Special", 3: "Heavy"}
+ELEMENTS = {1: "Kinetic", 2: "Arc", 3: "Solar", 4: "Void", 6: "Stasis", 7: "Strand"}
+PERKS_FALLBACK, INTRINSIC_FALLBACK = {4241085061}, {3956125808}
+MASTERWORK = re.compile(r"^(Tier \d+: |Masterworked: )")
+HIDDEN_WEAPON_STATS = {"Attack", "Power", "Defense", ""}
+
+
+def _categories(defs: dict, name: str, fallback: set[int]) -> set[int]:
+    found = {int(h) for h, n in defs["socketCategories"].items() if n.upper() == name}
+    return found or fallback
+
+
+def weapon_rows(profile: dict, defs: dict) -> list[dict]:
+    perk_cats = _categories(defs, "WEAPON PERKS", PERKS_FALLBACK)
+    intrinsic_cats = _categories(defs, "INTRINSIC TRAITS", INTRINSIC_FALLBACK)
+    plug = lambda h: defs["plugs"].get(str(h))  # noqa: E731
+    plug_name = lambda h: (plug(h) or {}).get("n", f"#{h}") if h else ""  # noqa: E731
+    rows = []
+    for item, location, cid, equipped in holdings(profile):
+        item_id = item.get("itemInstanceId")
+        wdef = defs["weapons"].get(str(item["itemHash"]))
+        if not item_id or not wdef:
+            continue
+        inst = _components(profile, "instances", item_id)
+        sockets = _components(profile, "sockets", item_id).get("sockets", [])
+        reusable = _components(profile, "reusablePlugs", item_id).get("plugs", {})
+        indexes = lambda cats: [i for h, idx in wdef["sc"] if h in cats for i in idx]  # noqa: E731
+        at = lambda i: sockets[i].get("plugHash") if i < len(sockets) else None  # noqa: E731
+
+        columns = []
+        for i in indexes(perk_cats):
+            sel = at(i)
+            if not sel or re.search("tracker", plug_name(sel), re.I):
+                continue
+            offered = {o["plugItemHash"]: o.get("canInsert") for o in reusable.get(str(i), [])}
+            hashes = list(offered) or [sel]
+            if sel not in hashes:
+                hashes.insert(0, sel)
+            columns.append({
+                "socketIndex": i, "label": re.sub(r"^Enhanced ", "", (plug(sel) or {}).get("t") or "Perk"),
+                "selected": plug_name(sel), "selectedHash": sel,
+                "options": [{"name": plug_name(h), "hash": h,
+                             "enhanced": bool(re.search("enhanced", (plug(h) or {}).get("t", ""), re.I)),
+                             "canInsert": h == sel or (h in offered and offered[h] is not False)}
+                            for h in hashes],
+            })
+
+        masterwork = mod = ""
+        for s in sockets:
+            p = plug(s.get("plugHash"))
+            if not p:
+                continue
+            if MASTERWORK.match(p["n"]):
+                masterwork = p["n"]
+            elif re.search("weapon mod", p["t"], re.I) and not re.search("empty", p["n"], re.I):
+                mod = p["n"]
+
+        rows.append({
+            "itemId": item_id, "itemHash": item["itemHash"], "name": wdef["n"], "type": wdef["t"],
+            "rarity": wdef["r"], "element": ELEMENTS.get(inst.get("damageType", 0), "None"),
+            "slot": WEAPON_SLOTS.get(wdef["b"], ""), "ammo": AMMO.get(wdef["a"], ""),
+            "power": inst.get("primaryStat", {}).get("value", 0), "gearTier": inst.get("gearTier"),
+            "locked": bool(item.get("state", 0) & 1), "crafted": bool(item.get("state", 0) & 8),
+            "equipped": equipped or inst.get("isEquipped") is True,
+            "location": location.removesuffix(" (Postmaster)"), "characterId": cid,
+            "frame": ", ".join(n for n in (plug_name(at(i)) for i in indexes(intrinsic_cats)) if n),
+            "columns": columns, "masterwork": masterwork, "mod": mod,
+            "stats": {k: v for k, v in stat_map(_components(profile, "stats", item_id), defs).items()
+                      if k not in HIDDEN_WEAPON_STATS},
+        })
+    return sorted(rows, key=lambda r: (r["type"].casefold(), r["name"].casefold()))
