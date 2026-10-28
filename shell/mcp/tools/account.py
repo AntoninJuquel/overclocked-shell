@@ -2,6 +2,7 @@
 from mcp.server.mcpserver import MCPServer
 
 from shell.context import Context
+from shell.engines.account import get_profile, primary_membership
 from shell.mcp import tool
 
 
@@ -14,12 +15,8 @@ def register(mcp: MCPServer, ctx: Context) -> None:
     @tool(mcp)
     def get_profile_summary() -> dict:
         """The player's Destiny account: display name, platform membership and characters (class, light)."""
-        memberships = ctx.client.get("/User/GetMembershipsForCurrentUser/", auth=True)
-        accounts = memberships["destinyMemberships"]
-        primary = memberships.get("primaryMembershipId")
-        account = next((a for a in accounts if a["membershipId"] == primary), accounts[0])
-        profile = ctx.client.get(f"/Destiny2/{account['membershipType']}/Profile/{account['membershipId']}/",
-                                 params={"components": "200"}, auth=True)
+        account = primary_membership(ctx.client)
+        profile = get_profile(ctx.client, account, [200])
         classes = ctx.manifest.table("DestinyClassDefinition")
         name = account.get("bungieGlobalDisplayName") or account.get("displayName", "")
         if account.get("bungieGlobalDisplayNameCode") is not None:
