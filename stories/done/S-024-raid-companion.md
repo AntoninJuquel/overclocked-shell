@@ -6,6 +6,6 @@
 Learn an encounter on demand without watching a 40-minute video.
 
 ## Acceptance criteria
-- [ ] Encounter data (phases, roles, callouts, maps) fetched from online guides into structured form
-- [ ] Step-by-step explanation for my role and fireteam size
-- [ ] Schematics rendered as SVG
+- [x] Encounter data (phases, roles, callouts, maps) fetched from online guides into structured form
+- [x] Step-by-step explanation for my role and fireteam size
+- [x] Schematics rendered as SVG
