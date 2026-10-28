@@ -31,9 +31,13 @@ a set shows its progress ("3/4 Powerhouse pieces on Warlock, missing: Legs, Clas
    fetch" section). Mention its warnings (sheets skipped, partial run).
 3. **Context**: `refresh_context(character)` with the sheets' class (`class` in `profile/builds/*.json`; several
    classes: the one the player aims at, otherwise ask), then `week_context`. The week keeps one class at a time.
+   Distortions: if `cache/distortions/rotation.json` is missing or more than 7 days old,
+   `refresh_references(source="distortions", force=true)`.
 4. **TODO**: `farm_plan` (`build` for a single build, `top` for the number of lines shown). Present the first
    entries (label, for which build and why, where and until when), flag the warnings (context unavailable or
    stale, sheets in error) and give the path of `profile/todo/<date>.md`.
+   A "Distorted" line is a farming time: that destination drops one gear tier higher during the window
+   (community-observed rotation, `distortions` tool for the full schedule).
 5. **Statuses**, when the player asks:
    - "I got X": preferably redo step 2 (the piece settles the need by itself if it fits); if the player just
      wants it crossed off: `set_need_status(<id>, "done")`;

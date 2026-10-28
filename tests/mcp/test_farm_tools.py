@@ -6,6 +6,7 @@ import pytest
 from mcp.server.mcpserver.exceptions import ToolError
 
 import shell.mcp.tools.farm as farm_tool
+from shell.engines.todo import plan
 from shell.context import Context
 from shell.mcp.server import build_server
 from tests.engines.todo.test_plan import CTX, NEEDS, STATE
@@ -53,7 +54,7 @@ def test_farm_plan_writes_plan_and_returns_sections(call, todo):
     md = todo / f"{_today()}.md"
     assert out["saved_to"] == str(md) and md.exists() and (todo / f"{_today()}.json").exists()
     assert out["hidden"] == {"done": 0, "ignored": 1}
-    assert out["warnings"] == []
+    assert out["warnings"] == [plan.NO_ROTATION]   # no Distortion rotation cached here
     when = out["sections"]["When you can"]
     assert when["count"] == 2 and len(when["entries"]) == 1   # top=1 per section
     assert when["entries"][0] == {"id": "masterwork/8", "label": "Masterwork: Other", "priority": 0.02,
