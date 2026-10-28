@@ -131,3 +131,16 @@ def test_missing_aegis_data(aegis):
         recommend.recommend(ITEMS, {}, "warlock")
     with pytest.raises(FileNotFoundError, match="refresh_references"):
         recommend.recommend(ITEMS, {}, "warlock", role="dps")
+
+
+def test_variants_share_one_line(aegis):
+    write_ratings(aegis)
+    items = [w("20", "Adamantite (Timelost)", location="Warlock", equipped=True), w("21", "Adamantite")]
+    assert [x.split(" | ")[2] for x in recommend.recommend(items, {}, "warlock")["picks"]] == ["Adamantite (Timelost)"]
+
+
+def test_long_dps_warning_is_capped(aegis):
+    write_dps(aegis)
+    items = [w(str(i), f"Gun {i:02}") for i in range(12)]
+    assert recommend.recommend(items, {}, "warlock", role="dps")["warnings"] == [
+        "no Aegis DPS row for: " + ", ".join(f"Gun {i:02}" for i in range(10)) + " … and 2 more"]

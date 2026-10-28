@@ -74,10 +74,11 @@ def _best_copies(rows, grades, cls):
         return (g is None, *(weapons._grade_key(g) if g else (0, 0)),
                 not (w.get("equipped") and w.get("location") == cls), not w.get("locked"), w["itemId"])
 
-    best = {}
+    best = {}  # by norm(name): "X (Timelost)" and "X (Adept)" are copies of X
     for w in rows:
-        if w["name"] not in best or key(w) < key(best[w["name"]]):
-            best[w["name"]] = w
+        n = norm(w["name"])
+        if n not in best or key(w) < key(best[n]):
+            best[n] = w
     return list(best.values())
 
 
@@ -118,7 +119,8 @@ def recommend(items, grades, character, role="general", slot=None, element=None,
         matched = [(w, dps_row(w, rows)) for w in copies]
         missing = [w["name"] for w, r in matched if r is None]
         if missing:
-            warnings.append(f"no Aegis DPS row for: {', '.join(missing)}")
+            more = f" … and {len(missing) - 10} more" if len(missing) > 10 else ""
+            warnings.append(f"no Aegis DPS row for: {', '.join(missing[:10])}{more}")
         ranked = sorted(((w, r) for w, r in matched if r is not None), key=lambda wr: (-_dps(wr[1]), wr[0]["name"]))
         label = _dps_label
     else:

@@ -14,9 +14,9 @@ the Compendium or the account.
    damage → `role="dps"`; anything else → `general`), the slot or weapon to replace. One question if the activity
    is unclear; otherwise assume and say what you assumed.
 2. **Fresh data.** `refresh_inventory()`. If Aegis is more than 7 days old, follow the `aegis` skill.
-3. **What they wear.** `get_equipped(character)`: subclass element (Prismatic counts as every element for
-   weapon synergy only when an aspect or fragment says so — check the Compendium), leg-armor Weapon Surge mods
-   (prefer that element), active artifact perks.
+3. **What they wear.** `get_equipped(character)`: subclass, aspects and fragments (an element synergy they
+   give comes from the Compendium, not memory), leg-armor Weapon Surge mods (prefer that element), active
+   artifact perks.
 4. **Constraints from the situation**, each turned into tool filters:
    - Champions: the activity's modifiers (`week_context()` after `refresh_context(character)` for this week's
      activities) and which weapon types the active artifact perks cover (`compendium` skill, artifact perks) →
