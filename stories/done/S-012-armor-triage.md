@@ -6,5 +6,5 @@
 Keep the best copy per stat distribution and set, drop all legacy.
 
 ## Acceptance criteria
-- [ ] Same decisions as dim-agent on the same inventory
-- [ ] Locks / unlocks applied through S-008
+- [x] Same decisions as dim-agent on the same inventory
+- [x] Locks / unlocks applied through S-008
