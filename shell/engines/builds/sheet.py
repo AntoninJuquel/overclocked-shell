@@ -215,7 +215,7 @@ def migrate(s) -> dict:
 
 def load(path):
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(path, encoding="utf-8-sig") as f:  # tolerate a BOM from Windows editors
             data = json.load(f)
     except json.JSONDecodeError as e:
         raise SheetError(f"sheet: invalid JSON ({e})") from e

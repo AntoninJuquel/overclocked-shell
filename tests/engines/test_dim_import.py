@@ -73,3 +73,37 @@ def test_wrong_folder_writes_nothing(tmp_path, profile):
     with pytest.raises(ValueError, match="not a dim-agent folder"):
         import_dim_agent(tmp_path / "nowhere")
     assert not profile.exists()
+
+
+def test_invalid_sheet_never_replaces_a_valid_one(tmp_path, profile):
+    import_dim_agent(dim_folder(tmp_path, {"x": SHEET}))
+    result = import_dim_agent(dim_folder(tmp_path / "2", {"x": {"name": "broken"}}))
+    assert result["invalid"] == ["x"]
+    assert json.loads((profile / "builds" / "x.json").read_text(encoding="utf-8"))["name"] == SHEET["name"]
+    assert json.loads((profile / "builds" / "x.dim-agent.json").read_text(encoding="utf-8")) == {"name": "broken"}
+
+
+def test_bad_todo_file_writes_nothing(tmp_path, profile):
+    src = dim_folder(tmp_path)
+    (src / "todo" / "needs.json").write_text("{not json", encoding="utf-8")
+    with pytest.raises(ValueError, match="needs.json"):
+        import_dim_agent(src)
+    assert not profile.exists()
+
+
+def test_bom_files_are_read(tmp_path, profile):
+    src = dim_folder(tmp_path)
+    (src / "builds" / "a.json").write_text(json.dumps(SHEET), encoding="utf-8-sig")
+    (src / "todo" / "sources.json").write_text("{}", encoding="utf-8-sig")
+    assert import_dim_agent(src)["builds"] == ["a"]
+
+
+def test_manual_status_beats_automatic_and_ties_stay_with_shell():
+    ours = {"tie": {"status": "ignored", "since": "2026-10-28"},
+            "auto": {"status": "done", "since": "2026-10-27", "auto": True},
+            "both": {"status": "done", "since": "2026-10-20"}}
+    theirs = {"tie": {"status": "todo", "since": "2026-10-28"},
+              "auto": {"status": "ignored", "since": "2026-10-25"},
+              "both": {"status": "ignored", "since": "2026-10-22"}}
+    merged, _ = merge_state(ours, theirs)
+    assert {k: v["status"] for k, v in merged.items()} == {"tie": "ignored", "auto": "ignored", "both": "ignored"}

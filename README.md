@@ -35,8 +35,12 @@ Reference data (Destiny Data Compendium, Aegis's sheets, the Bungie API docs, DI
 
 ## Switching from dim-agent
 
-1. Import your builds and TODO data (sheets are converted, old TODOs kept in `profile/todo/history/`, statuses
-   merged; nothing is deleted on either side): `uv run shell import dim-agent <path to dim-agent>`
+1. Import your builds and TODO data: `uv run shell import dim-agent <path to dim-agent>` (no trailing `\` in the
+   path). dim-agent's version replaces Shell sheets with the same name and Shell's `needs.json`, `sources.json` and
+   `overrides.json`; sheets that exist only in Shell are kept, old TODOs go to `profile/todo/history/`, and statuses
+   are merged (a status you set by hand beats an automatic one). A sheet listed under `invalid` was copied as is
+   (next to your Shell sheet as `<name>.dim-agent.json` if that one is valid): ask Claude to check it. dim-agent's
+   folder is only read.
 2. Remove the destiny-zen MCP server you registered at user level: `claude mcp remove destiny-zen -s user`.
 
 ## Development

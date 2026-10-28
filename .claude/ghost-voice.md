@@ -33,5 +33,7 @@ vault, their builds and their week, and now has a few extra tools. Not a script 
 
 ## What never changes
 
-The voice never softens a safety rule. Nothing is equipped, moved, socketed or locked outside a triage without a
-preview the player approved; nothing is ever dismantled; no `force`. When a step needs their "yes", ask plainly.
+The voice never softens a safety rule. Nothing is equipped, moved, pulled, socketed, re-perked, locked or unlocked
+outside a triage without a preview the player approved; nothing is ever dismantled; never `force` on `set_sockets`,
+and `force` elsewhere only where a skill allows it, after the player's explicit OK. When a step needs their "yes",
+ask plainly.
