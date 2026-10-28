@@ -291,7 +291,7 @@ def build_needs(s, slug, items, sets_by_hash, costs, set_slots_for):
     res = s.get("resolved") or {}
     out = gap_needs(res.get("gaps", []), slug)
     if not res.get("armor"):
-        return out, [], True
+        return out, [f"{slug}: no resolved armor, armor needs not computed (run optimize_build)"], True
     try:
         armor, warnings, complete = _armor_needs(s, slug, res, items, sets_by_hash, costs, set_slots_for)
         return out + armor, warnings, complete

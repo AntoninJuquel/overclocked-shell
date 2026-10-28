@@ -303,7 +303,9 @@ def test_build_needs_keeps_gap_needs_when_armor_part_fails():
 
 def test_build_needs_without_armor_result():
     s = {**SHEET, "resolved": {"gaps": []}}
-    assert needs.build_needs(s, "b", ITEMS, {}, COSTS, lambda cls: {}) == ([], [], True)
+    # still complete (as dim-agent: the needs come back once the sheet is resolved), but no longer silent
+    assert needs.build_needs(s, "b", ITEMS, {}, COSTS, lambda cls: {}) == (
+        [], ["b: no resolved armor, armor needs not computed (run optimize_build)"], True)
 
 
 def _run(tmp_path, builds):
