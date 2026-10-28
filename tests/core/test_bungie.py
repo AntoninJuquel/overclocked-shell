@@ -73,3 +73,25 @@ def test_maintenance_gives_up_after_3_retries():
 def test_http_503_retried():
     c, seen = client([httpx.Response(503, text="busy"), OK])
     assert c.get("/x/") == {"x": 1} and len(seen) == 2
+
+
+def test_503_json_body_keeps_code_and_throttle():
+    sleeps = []
+    down = httpx.Response(503, json={"ErrorCode": 5, "ErrorStatus": "SystemDisabled", "Message": "maintenance",
+                                     "ThrottleSeconds": 30})
+    c, seen = client([down] * 4, sleeps)
+    with pytest.raises(BungieApiError) as e:
+        c.get("/x/")
+    assert e.value.error_code == 5 and "maintenance" in str(e.value) and sleeps == [30, 30, 30]
+
+
+def test_non_json_response_raises_bungie_error():
+    c, seen = client([httpx.Response(200, text="<html>oops</html>")])
+    with pytest.raises(BungieApiError):
+        c.get("/x/")
+    assert len(seen) == 1
+
+
+def test_429_html_retried():
+    c, seen = client([httpx.Response(429, text="<html>slow down</html>"), OK])
+    assert c.get("/x/") == {"x": 1}

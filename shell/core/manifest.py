@@ -21,9 +21,10 @@ class Manifest:
     def table(self, name: str) -> dict[str, dict]:
         if name not in self._tables:
             file = self.root / self.version() / f"{name}.json"
-            if not file.exists():
-                self._download(name, file)
-            self._tables[name] = json.loads(file.read_text(encoding="utf-8"))
+            if file.exists():
+                self._tables[name] = json.loads(file.read_text(encoding="utf-8"))
+            else:
+                self._tables[name] = self._download(name, file)
         return self._tables[name]
 
     def _load_index(self) -> dict:
@@ -31,14 +32,13 @@ class Manifest:
             self._index = self.client.get("/Destiny2/Manifest/")
         return self._index
 
-    def _download(self, name: str, file: Path) -> None:
-        url = BASE + self._load_index()["jsonWorldComponentContentPaths"]["en"][name]
-        res = self.client.http.get(url)
-        res.raise_for_status()
+    def _download(self, name: str, file: Path) -> dict:
+        table = self.client.download(BASE + self._load_index()["jsonWorldComponentContentPaths"]["en"][name])
         file.parent.mkdir(parents=True, exist_ok=True)
         tmp = file.with_suffix(".tmp")
-        tmp.write_bytes(res.content)
+        tmp.write_text(json.dumps(table), encoding="utf-8")
         os.replace(tmp, file)
         for old in self.root.iterdir():
             if old.is_dir() and old != file.parent:
                 shutil.rmtree(old, ignore_errors=True)
+        return table

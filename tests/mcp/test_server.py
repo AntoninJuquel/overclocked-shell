@@ -65,7 +65,7 @@ def test_discovers_tools():
 def test_not_signed_in_is_one_line():
     with pytest.raises(ToolError) as e:
         call(context(FakeOAuth(NotSignedIn())), "get_profile_summary")
-    assert "uv run shell auth login" in str(e.value) and "Traceback" not in str(e.value)
+    assert "shell auth login" in str(e.value) and "Traceback" not in str(e.value)
 
 
 def test_profile_summary_shape():

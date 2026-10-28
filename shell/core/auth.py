@@ -1,6 +1,7 @@
 """Bungie.net OAuth 2.0, confidential client (https://github.com/Bungie-net/api/wiki/OAuth-Documentation)."""
 import json
 import os
+import threading
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -11,6 +12,7 @@ from urllib.parse import urlencode
 import httpx
 
 from shell.core import paths
+from shell.core.bungie import BungieApiError
 from shell.core.settings import Settings
 
 AUTHORIZE_URL = "https://www.bungie.net/en/oauth/authorize"
@@ -20,7 +22,7 @@ REFRESH_MARGIN = 120  # seconds before expiry
 
 class NotSignedIn(Exception):
     def __init__(self, reason: str = "Not signed in to Bungie."):
-        super().__init__(f"{reason} Run `uv run shell auth login`.")
+        super().__init__(f'{reason} Run `uv run --directory "{paths.ROOT}" shell auth login`.')
 
 
 @dataclass
@@ -39,6 +41,7 @@ class OAuth:
         self.token_file = token_file or paths.profile_dir() / "auth" / "tokens.json"
         self.http = http or httpx.Client(timeout=30)
         self.clock = clock
+        self._lock = threading.Lock()  # parallel tool calls must not both spend the refresh token
 
     def authorize_url(self, state: str) -> str:
         params = {"client_id": self.settings.client_id, "response_type": "code", "state": state}
@@ -48,6 +51,10 @@ class OAuth:
         return self._request({"grant_type": "authorization_code", "code": code})
 
     def access_token(self) -> str:
+        with self._lock:
+            return self._access_token()
+
+    def _access_token(self) -> str:
         tokens = self._load()
         if tokens is None:
             raise NotSignedIn()
@@ -71,9 +78,14 @@ class OAuth:
         }
 
     def _request(self, form: dict) -> Tokens:
-        res = self.http.post(TOKEN_URL, data=form, auth=(self.settings.client_id, self.settings.client_secret))
+        try:
+            res = self.http.post(TOKEN_URL, data=form, auth=(self.settings.client_id, self.settings.client_secret))
+        except httpx.TransportError as e:
+            raise BungieApiError(f"Network error reaching Bungie sign-in: {e}") from e
+        if res.status_code in (400, 401):
+            raise NotSignedIn(f"Bungie refused the saved sign-in ({res.text[:200]}).")
         if res.status_code != 200:
-            raise RuntimeError(f"Bungie token request failed: {res.status_code} {res.text}")
+            raise BungieApiError(f"Bungie sign-in unavailable: HTTP {res.status_code}")
         data = res.json()
         if not data.get("refresh_token") or not data.get("refresh_expires_in"):
             raise RuntimeError('Bungie returned no refresh token: set the app\'s OAuth Client Type to "Confidential".')

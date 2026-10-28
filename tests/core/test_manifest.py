@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from shell.core.bungie import BungieClient
+from shell.core.bungie import BungieApiError, BungieClient
 from shell.core.manifest import Manifest
 from shell.core.settings import Settings
 
@@ -9,7 +9,7 @@ SETTINGS = Settings("k", "1", "s", "https://localhost:7777/callback")
 TABLE_PATH = "/common/destiny2_content/json/en/DestinyClassDefinition-v1.json"
 
 
-def server(version, table_calls, fail_table=False):
+def server(version, table_calls, fail_table=False, table_responses=None):
     def handler(request):
         if request.url.path == "/Platform/Destiny2/Manifest/":
             return httpx.Response(200, json={"ErrorCode": 1, "Response": {
@@ -19,6 +19,8 @@ def server(version, table_calls, fail_table=False):
         table_calls.append(version)
         if fail_table:
             raise httpx.ReadError("cut")
+        if table_responses:
+            return table_responses.pop(0)
         return httpx.Response(200, json={"1": {"displayProperties": {"name": "Warlock"}}})
     return BungieClient(SETTINGS, None, http=httpx.Client(transport=httpx.MockTransport(handler)),
                         sleep=lambda s: None)
@@ -42,6 +44,19 @@ def test_new_version_removes_old_folder(tmp_path):
 
 
 def test_no_partial_file_on_failure(tmp_path):
-    with pytest.raises(Exception):
+    with pytest.raises(BungieApiError):
         Manifest(server("v1", [], fail_table=True), tmp_path).table("DestinyClassDefinition")
+    assert not list((tmp_path / "manifest").rglob("*.json"))
+
+
+def test_table_fetch_retried(tmp_path):
+    good = httpx.Response(200, json={"1": {}})
+    m = Manifest(server("v1", [], table_responses=[httpx.Response(503, text="busy"), good]), tmp_path)
+    assert m.table("DestinyClassDefinition") == {"1": {}}
+
+
+def test_invalid_table_not_cached(tmp_path):
+    bad = [httpx.Response(200, text="<html>error</html>")]
+    with pytest.raises(BungieApiError):
+        Manifest(server("v1", [], table_responses=bad), tmp_path).table("DestinyClassDefinition")
     assert not list((tmp_path / "manifest").rglob("*.json"))

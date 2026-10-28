@@ -4,6 +4,11 @@ from urllib.parse import parse_qs
 
 import httpx
 import pytest
+import time
+from concurrent.futures import ThreadPoolExecutor
+
+from shell.core import paths
+from shell.core.bungie import BungieApiError
 
 from shell.core.auth import NotSignedIn, OAuth
 from shell.core.settings import Settings
@@ -74,13 +79,13 @@ def test_access_token_cached_when_fresh(tmp_path):
 
 def test_expired_refresh_raises_not_signed_in(tmp_path):
     oauth, _ = make(tmp_path, never, stored(access_in=-10, refresh_in=-1))
-    with pytest.raises(NotSignedIn, match="uv run shell auth login"):
+    with pytest.raises(NotSignedIn, match="shell auth login"):
         oauth.access_token()
 
 
 def test_no_tokens_raises_not_signed_in(tmp_path):
     oauth, _ = make(tmp_path, never)
-    with pytest.raises(NotSignedIn, match="uv run shell auth login"):
+    with pytest.raises(NotSignedIn, match="shell auth login"):
         oauth.access_token()
 
 
@@ -97,3 +102,41 @@ def test_status(tmp_path):
     assert s["signed_in"] is True and s["membership_id"] == "42" and s["token_file"] == str(token_file)
     oauth2, _ = make(tmp_path / "x", never)
     assert oauth2.status()["signed_in"] is False
+
+
+def test_refused_refresh_raises_not_signed_in(tmp_path):
+    oauth, _ = make(tmp_path, lambda r: httpx.Response(400, json={"error": "invalid_grant"}), stored(access_in=-10))
+    with pytest.raises(NotSignedIn, match="refused"):
+        oauth.access_token()
+
+
+def test_token_endpoint_down_raises_bungie_error(tmp_path):
+    oauth, _ = make(tmp_path, lambda r: httpx.Response(503, text="down"), stored(access_in=-10))
+    with pytest.raises(BungieApiError):
+        oauth.access_token()
+
+
+def test_network_error_on_refresh_raises_bungie_error(tmp_path):
+    def handler(request):
+        raise httpx.ConnectError("offline")
+    oauth, _ = make(tmp_path, handler, stored(access_in=-10))
+    with pytest.raises(BungieApiError):
+        oauth.access_token()
+
+
+def test_concurrent_calls_refresh_once(tmp_path):
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        time.sleep(0.2)
+        return httpx.Response(200, json={**TOKEN_RESPONSE, "access_token": "a2"})
+
+    oauth, _ = make(tmp_path, handler, stored(access_in=60))
+    with ThreadPoolExecutor(2) as pool:
+        results = list(pool.map(lambda _: oauth.access_token(), range(2)))
+    assert results == ["a2", "a2"] and len(calls) == 1
+
+
+def test_sign_in_hint_names_install_root():
+    assert f'uv run --directory "{paths.ROOT}" shell auth login' in str(NotSignedIn())
