@@ -11,7 +11,8 @@ def register(mcp: MCPServer, ctx: Context) -> None:
     @tool(mcp)
     def get_equipped(character: str) -> dict:
         """Equipped weapons and armor (live stats, mods), subclass (super, abilities, aspects, fragments), active
-        artifact perks and armor stat totals for one character: titan, hunter or warlock."""
+        artifact perks and armor stat totals for one character: titan, hunter or warlock. other_subclasses and
+        other_artifacts give the ids of those not equipped (for equip_items / set_sockets)."""
         account = primary_membership(ctx.client)
         profile = get_profile(ctx.client, account, [200, 201, 205, 300, 304, 305])
         result = equipped(profile, ctx.defs, character_id(profile, character))

@@ -4,12 +4,13 @@ import re
 from shell.engines.inventory import ARMOR_BUCKETS, ARMOR_STATS, _components, plug_list, stat_map
 
 SUBCLASS_BUCKET = 3284755031
+ARTIFACT_BUCKET = 1506418338
 SKIPPED_TYPES = re.compile(r"emblem|ship|sparrow|vehicle|finisher|emote|clan banner|ghost", re.I)
 
 
 def equipped(profile: dict, defs: dict, cid: str) -> dict:
     out = {"items": [], "subclass": None, "artifact": None, "armor_totals": dict.fromkeys(ARMOR_STATS, 0),
-           "other_subclasses": []}
+           "other_subclasses": [], "other_artifacts": []}
     for item in profile["characterEquipment"]["data"][cid]["items"]:
         item_id, h = item.get("itemInstanceId"), str(item["itemHash"])
         weapon, gear = defs["weapons"].get(h), defs["gear"].get(h)
@@ -35,8 +36,10 @@ def equipped(profile: dict, defs: dict, cid: str) -> dict:
             out["items"].append(entry)
     for item in profile.get("characterInventories", {}).get("data", {}).get(cid, {}).get("items", []):
         gear = defs["gear"].get(str(item["itemHash"]))
-        if gear and gear[3] == SUBCLASS_BUCKET and item.get("itemInstanceId"):
-            out["other_subclasses"].append({"itemId": item["itemInstanceId"], "name": gear[0]})
+        # ids of the subclasses and artifacts not equipped, for equip_items / set_sockets
+        others = {SUBCLASS_BUCKET: "other_subclasses", ARTIFACT_BUCKET: "other_artifacts"}
+        if gear and gear[3] in others and item.get("itemInstanceId"):
+            out[others[gear[3]]].append({"itemId": item["itemInstanceId"], "name": gear[0]})
     return out
 
 

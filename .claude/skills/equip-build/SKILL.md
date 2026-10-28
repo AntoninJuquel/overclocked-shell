@@ -34,12 +34,13 @@ Nothing is ever dismantled. No action in game without the player's explicit "yes
      no weapons, an exotic that may block, masterworks to do, missing fragments.
 3. **Character** (`character` from the plan): in orbit, a social space or offline; otherwise wait.
    `get_equipped(character)` → `subclass.itemId` when the equipped subclass is `subclass.item`, else the id of
-   that item in `other_subclasses`. If `artifact`: `get_equipped` gives the equipped artifact and its id. If it
-   is not `artifact.name`, Shell can't read the other artifacts' ids (each character has them all): ask the
-   player to equip it in game, then read `get_equipped` again.
+   that item in `other_subclasses`. If `artifact`: the id of the artifact named `artifact.name` — `get_equipped().artifact` when it is the one
+   equipped, else its entry in `other_artifacts` (each character has every artifact); it is then equipped with
+   the other items through `equip_items`.
 4. **Preview** (`dry_run: true`, no effect):
-   - `equip_items`: `character`, `item_ids` = `equip` + the subclass id (12 at most). A weapon "in the
-     postmaster" (weapon rows don't mark it): pull it before asking for the "yes", with the player's OK
+   - `equip_items`: `character`, `item_ids` = `equip` + the subclass id + the artifact id when it is not
+     equipped yet (12 at most). A weapon "in the
+     postmaster" (weapon rows don't mark it): pull it before asking for the "yes", with a dry run then the player's OK
      (`pull_from_postmaster`, `character` = the class `weapon_candidates` gives as its location, lowercase), then
      redo this dry run;
    - `set_sockets` subclass, alone: `changes: [{itemId: <subclass id>, plugs: subclass.plugs}]`. Fragments come
