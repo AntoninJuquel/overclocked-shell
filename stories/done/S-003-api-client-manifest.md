@@ -6,6 +6,6 @@
 Every feature needs reliable API calls and item definitions.
 
 ## Acceptance criteria
-- [ ] Throttling and maintenance are retried, then reported with the Bungie error code
-- [ ] Manifest tables download once per version into `cache/manifest/`, atomically
-- [ ] Old manifest versions are cleaned up
+- [x] Throttling and maintenance are retried, then reported with the Bungie error code
+- [x] Manifest tables download once per version into `cache/manifest/`, atomically
+- [x] Old manifest versions are cleaned up
