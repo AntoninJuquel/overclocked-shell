@@ -53,7 +53,7 @@ def render(md_text: str, fonts="auto", compress=True) -> tuple[bytes, list[str]]
 
     def text(t, size=10, style="", gap=1.5):
         pdf.set_font(family, style, size)
-        pdf.multi_cell(0, size * 0.5, clean(t), new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, size * 0.5, clean(t), align="L", new_x="LMARGIN", new_y="NEXT")
         pdf.ln(gap)
 
     lines = md_text.splitlines()
@@ -67,7 +67,7 @@ def render(md_text: str, fonts="auto", compress=True) -> tuple[bytes, list[str]]
                     rows.append(_cells(lines[i]))
                 i += 1
             pdf.set_font(family, "", 8)
-            with pdf.table(headings_style=FontFace(emphasis="BOLD"), line_height=4) as table:
+            with pdf.table(headings_style=FontFace(emphasis="BOLD"), line_height=4, text_align="LEFT") as table:
                 for cells in rows:
                     row = table.row()
                     for c in cells:
