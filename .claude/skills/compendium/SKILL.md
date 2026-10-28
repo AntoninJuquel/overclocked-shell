@@ -5,6 +5,8 @@ description: Exact Destiny 2 values and mechanics (weapon perks, exotics, armor 
 
 # Destiny 2 Compendium
 
+Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md) (French when the player writes French).
+
 The community "Destiny Data Compendium" (Google Sheets) is converted to Markdown in `cache/compendium/`
 (not versioned: its author's content).
 

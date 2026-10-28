@@ -5,6 +5,8 @@ description: Aegis's Destiny 2 PvE endgame ratings — tiers and ranks of legend
 
 # Aegis (Endgame Analysis, Boss Damage)
 
+Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md) (French when the player writes French).
+
 Aegis's two spreadsheets (https://www.destiny2.science/) are converted in `cache/aegis/` (not versioned: their
 author's content): `endgame/` (Endgame Analysis) and `boss/` (Boss Damage), one `.md` per tab for reading and one
 `.json` for code. These are **ratings** (PvE endgame); exact game values come from the Compendium (`compendium`

@@ -5,6 +5,8 @@ description: Triage Destiny 2 weapons against a DIM wishlist (default MrCharles'
 
 # Weapon triage
 
+Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md) (French when the player writes French).
+
 ## Steps
 
 1. `auth_status` (if expired: the player runs `uv run shell auth login` from the repo root).

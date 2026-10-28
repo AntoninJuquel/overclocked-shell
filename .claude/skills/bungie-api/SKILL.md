@@ -5,6 +5,8 @@ description: Bungie.net API reference (Destiny2 endpoints, manifest definition s
 
 # Bungie.net API
 
+Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md) (French when the player writes French).
+
 The official OpenAPI spec (the one behind https://bungie-net.github.io/) is converted to Markdown in
 `cache/bungie-api/` (not versioned, regenerable).
 

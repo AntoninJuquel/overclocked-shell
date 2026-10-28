@@ -5,6 +5,8 @@ description: Equip a saved build sheet (profile/builds/*.json) in game — armor
 
 # Equip a build
 
+Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md) (French when the player writes French).
+
 Nothing is ever dismantled. No action in game without the player's explicit "yes" on the dry-run summary.
 **Never** pass `force: true` to `set_sockets`: it skips the "already installed" check and can lose mods.
 

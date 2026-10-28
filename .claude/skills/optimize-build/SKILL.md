@@ -5,6 +5,8 @@ description: Re-optimize a saved build sheet (profile/builds/*.json) on the curr
 
 # Re-optimize a build
 
+Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md) (French when the player writes French).
+
 A build sheet = `profile/builds/<slug>.json` (source of truth) + `profile/builds/<slug>.md` (regenerated view).
 `intent` is the player's intention (exotic, subclass, stat thresholds and priorities, sets, utility mods, weapon
 roles): never change it here without their OK. `resolved` is the last dated result.

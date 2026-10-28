@@ -5,6 +5,8 @@ description: Build the player's dated Destiny 2 farm TODO — what their builds 
 
 # Farm TODO
 
+Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md) (French when the player writes French).
+
 The TODO crosses three things: the needs of the sheets in `profile/builds/*.json` (`profile/todo/needs.json`,
 computed by `farm_needs`), this week's context (`profile/todo/week/<date>.json`, from `refresh_context` and
 `week_context`) and the known sources (manifest, `profile/todo/sources.json`). Result: `profile/todo/<date>.md`,

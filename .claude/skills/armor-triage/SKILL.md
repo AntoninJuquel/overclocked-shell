@@ -5,6 +5,8 @@ description: Triage the Destiny 2 armor vault — keep the best copy per stat di
 
 # Armor triage
 
+Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md) (French when the player writes French).
+
 Goal: be able to aim at any build (stats + set bonus) while keeping as few pieces as possible. Only stat quality
 counts: it does not save materials and ignores loadouts and what is equipped (if a better copy exists, that is the
 one to keep).

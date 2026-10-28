@@ -5,6 +5,8 @@ description: Generate a DIM-importable CSV of tags (keep / junk) and notes from 
 
 # Export tags to DIM
 
+Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md) (French when the player writes French).
+
 1. Check that a recent triage exists (`profile/triage/armor.json` and / or `weapons.json`). Otherwise run the
    `armor-triage` / `weapon-triage` skills first (at least up to the triage tool).
 2. `export_dim_tags` → `profile/triage/dim_tags.csv` (KEEP → `keep`, JUNK → `junk`, note = `shell: <reason>`
