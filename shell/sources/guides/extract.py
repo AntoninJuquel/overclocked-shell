@@ -2,7 +2,7 @@
 (the source downloads them). Scripts, navigation, forms and icons (width or height under 64) are dropped."""
 import re
 from html.parser import HTMLParser
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 SKIP = {"script", "style", "nav", "aside", "form", "iframe", "svg", "noscript", "button"}
 HEADINGS = {"h1": "#", "h2": "##", "h3": "###", "h4": "####"}
@@ -42,11 +42,13 @@ class _Parser(HTMLParser):
         def small(key):
             return (a.get(key) or "").isdigit() and int(a[key]) < ICON_SIZE
         src = a.get("data-src") or a.get("data-lazy-src") or a.get("src")
-        if not src or src.startswith("data:") or small("width") or small("height"):
+        url = urljoin(self.base, src or "")
+        # only web images: a file: or data: URL in a guide page must never be read
+        if not src or urlsplit(url).scheme.lower() not in ("http", "https") or small("width") or small("height"):
             return
         self._flush()
         self.blocks.append(f"{{{{img:{len(self.images)}}}}}")
-        self.images.append([urljoin(self.base, src), (a.get("alt") or "").strip()])
+        self.images.append([url, (a.get("alt") or "").strip()])
 
     def handle_endtag(self, tag):
         if tag in SKIP and self.skip:

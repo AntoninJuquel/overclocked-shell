@@ -16,8 +16,9 @@ def _cached_guides(raid):
 
 def _problems(raid, enc):
     try:
-        return raids.check(enc, _cached_guides(raid))
-    except (KeyError, TypeError, AttributeError) as e:
+        problems = raids.check(enc, _cached_guides(raid))
+        return problems or raids.shared_ids(raid, enc["encounter"], enc)
+    except (KeyError, TypeError, AttributeError, ValueError) as e:
         return [f"malformed encounter file: {type(e).__name__}: {e}"]
 
 

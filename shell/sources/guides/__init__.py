@@ -2,6 +2,8 @@
 
 Third-party content: kept locally for the Ghost to read when it writes an encounter file, never published.
 """
+import http.client
+import json
 import re
 import shutil
 from datetime import datetime, timezone
@@ -25,7 +27,9 @@ ENCOUNTERS = {
                          "taniks-abomination"],
 }
 
-IMAGE_TYPES = (".jpg", ".jpeg", ".png", ".webp", ".gif")
+MAX_IMAGE = 10 * 1024 * 1024
+UNAVAILABLE = "(image unavailable)"
+DOWNLOAD_ERRORS = (OSError, ValueError, http.client.HTTPException)
 
 
 def folder() -> Path:
@@ -36,23 +40,50 @@ def guide_path(raid: str, guide: str) -> Path:
     return folder() / raid / f"{guide}.md"
 
 
+def _today():
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def _image_type(data):
+    """Extension from the file's first bytes (hosts serve WebP as .jpg, or an HTML error page); None if not an image."""
+    if not data or len(data) > MAX_IMAGE:
+        return None
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return ".webp"
+    magics = ((bytes.fromhex("ffd8ff"), ".jpg"), (bytes.fromhex("89504e47"), ".png"), (b"GIF8", ".gif"))
+    return next((ext for magic, ext in magics if data.startswith(magic)), None)
+
+
 def _images(raid, guide, images):
-    """Downloads the images next to the guide; Markdown for each, best-effort."""
-    target = folder() / raid / guide
-    shutil.rmtree(target, ignore_errors=True)
-    out = []
+    """Downloads the images into a side folder, once each (best-effort): (Markdown per image, folder, failures)."""
+    tmp = folder() / raid / f".{guide}.new"
+    shutil.rmtree(tmp, ignore_errors=True)
+    out, failed = [], 0
     for n, (url, alt) in enumerate(images):
-        ext = Path(urlsplit(url).path).suffix.lower()
-        ext = ext if ext in IMAGE_TYPES else ".jpg"
         try:
-            data = web.get(url)
-        except (OSError, ValueError):
-            out.append(f"![{alt} (image unavailable)]()")
+            data = web.get(url, tries=1)
+        except DOWNLOAD_ERRORS:
+            data = None
+        ext = _image_type(data)
+        if ext is None:
+            failed += 1
+            out.append(f"![{alt} {UNAVAILABLE}]()")
             continue
-        target.mkdir(parents=True, exist_ok=True)
-        (target / f"img-{n:02}{ext}").write_bytes(data)
+        tmp.mkdir(parents=True, exist_ok=True)
+        (tmp / f"img-{n:02}{ext}").write_bytes(data)
         out.append(f"![{alt}]({guide}/img-{n:02}{ext})")
-    return out
+    return out, tmp, failed
+
+
+def _fetched_path(raid):
+    return folder() / raid / "fetched.json"
+
+
+def _mark_fetched(raid, guide):
+    path = _fetched_path(raid)
+    dates = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    dates[guide] = _today()
+    write_if_changed(path, json.dumps(dates, indent=1))
 
 
 def _index(raid):
@@ -64,7 +95,8 @@ def _index(raid):
         head = path.read_text(encoding="utf-8").split("\n", 1)[0]
         updated = (re.search(r"updated: (\S+)", head) or [None, "unknown"])[1]
         images = len(list((folder() / raid / guide).glob("img-*"))) if (folder() / raid / guide).exists() else 0
-        fetched = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).date().isoformat()
+        dates = json.loads(_fetched_path(raid).read_text(encoding="utf-8")) if _fetched_path(raid).exists() else {}
+        fetched = dates.get(guide) or datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).date().isoformat()
         rows.append(f"| {guide} | {updated} | {images} | {url} | {fetched} |")
     write_if_changed(folder() / raid / "index.md", f"# Guides — {raid}\n\n" + "\n".join(rows) + "\n")
 
@@ -75,8 +107,11 @@ def _refresh_guide(raid, guide, url, force, changed, stale, errors):
         return
     try:
         page = web.get(url).decode("utf-8", "replace")
-    except OSError as e:
-        stale.append(rel) if path.exists() else errors.append(f"{raid}/{guide}: {e}")
+    except DOWNLOAD_ERRORS as e:
+        if path.exists():
+            stale.append(rel)
+        else:
+            errors.append(f"{raid}/{guide}: {e}")
         return
     try:
         html, updated = sites.article(guide, page)
@@ -84,8 +119,20 @@ def _refresh_guide(raid, guide, url, force, changed, stale, errors):
         errors.append(f"{raid}/{guide}: {e}")
         return
     md, images = extract.to_markdown(html, url)
-    for n, image in enumerate(_images(raid, guide, images)):
+    shown, tmp, failed = _images(raid, guide, images)
+    old = path.read_text(encoding="utf-8") if path.exists() else None
+    if old is not None and failed > old.count(UNAVAILABLE):
+        # more images missing than last time (a host down?): keep the previous text and images together
+        shutil.rmtree(tmp, ignore_errors=True)
+        stale.append(rel)
+        return
+    target = folder() / raid / guide
+    shutil.rmtree(target, ignore_errors=True)
+    if tmp.exists():
+        tmp.rename(target)
+    for n, image in enumerate(shown):
         md = md.replace(f"{{{{img:{n}}}}}", image, 1)
+    _mark_fetched(raid, guide)
     text = f"<!-- source: {url} · updated: {updated or 'unknown'} -->\n# {raid} — {guide}\n\n{md}\n"
     if write_if_changed(path, text):
         changed.append(rel)

@@ -17,7 +17,7 @@ SLUG = re.compile(r"^[a-z0-9-]+$")
 
 
 def _slug(value):
-    if not SLUG.match(value or ""):
+    if not SLUG.fullmatch(value or ""):
         raise ValueError(f"not a slug: {value!r} (lowercase letters, digits and dashes)")
     return value
 
@@ -55,6 +55,23 @@ def _sourced(label, item, guides):
     return [f"{label}: no source"] if not found else [f"{label}: unknown guide {g}" for g in found if g not in guides]
 
 
+def _names_a_guide(pos_source, guides):
+    """ "shacknews image 4", "grindout text: left of the door": a cached guide, then its image or its text."""
+    first, _, rest = pos_source.partition(" ")
+    return first in guides and (rest.startswith("text") or re.fullmatch(r"image \d+.*", rest) is not None)
+
+
+def shared_ids(raid: str, encounter: str, enc: dict) -> list[str]:
+    """Problems for spot ids another encounter of the raid also uses: renames are per raid, so ids must be unique."""
+    out = []
+    others = {e: {s.get("id") for s in load(raid, e).get("spots", [])} for e in encounters(raid) if e != encounter}
+    for s in enc["spots"]:
+        found = [e for e, ids in others.items() if s["id"] in ids]
+        if found:
+            out.append(f"spot {s['id']}: also in {', '.join(found)} (prefix spot ids with the encounter)")
+    return out
+
+
 def check(enc: dict, guides: set[str]) -> list[str]:
     """Problems of an encounter file; [] when valid. `guides`: the guides cached for its raid."""
     missing = [f"missing key: {k}" for k in REQUIRED if k not in enc]
@@ -88,6 +105,8 @@ def check(enc: dict, guides: set[str]) -> list[str]:
                 problems.append(f"{label}: position out of 0-100")
             if not s.get("pos_source"):
                 problems.append(f"{label}: position without pos_source")
+            elif not _names_a_guide(s["pos_source"], guides):
+                problems.append(f"{label}: pos_source must name a guide's image or text")
         problems += _sourced(label, s, guides)
     for p in enc["phases"]:
         label = f"phase {p['id']}"

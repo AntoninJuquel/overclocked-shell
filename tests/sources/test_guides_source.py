@@ -6,6 +6,7 @@ from shell.sources import guides, sources
 from tests.sources.test_guides_extract import grindout_page
 
 URLS = guides.GUIDES["deep-stone-crypt"]
+JPEG, PNG, WEBP = b"\xff\xd8\xff\xe0rest", b"\x89PNG\r\n\x1a\nrest", b"RIFF\x00\x00\x00\x00WEBPrest"
 SHACK = ('<script type="application/ld+json">{"dateModified":"2026-02-01T00:00:00Z"}</script>'
          '<article id="detail-view"><h2>Disable Crypt Security</h2><p>Panels 1 to 5.</p>'
          '<img src="/img/basement.jpg" alt="Basement"></article>')
@@ -19,10 +20,11 @@ GRIND = grindout_page('<h2>Crypt Security</h2><p>Scanner upstairs.</p><img src="
 def web(monkeypatch):
     """The fake internet: URL -> bytes or an exception to raise."""
     pages = {URLS["grindout"]: GRIND.encode(), URLS["shacknews"]: SHACK.encode(), URLS["overgear"]: OVER.encode(),
-             "https://grindout.com/storage/a.png": b"PNG", "https://cdn.x/b.webp": b"WEBP",
-             "https://www.shacknews.com/img/basement.jpg": b"JPG"}
+             "https://grindout.com/storage/a.png": PNG, "https://cdn.x/b.webp": WEBP,
+             "https://www.shacknews.com/img/basement.jpg": JPEG, "_tries": {}}
 
-    def get(url):
+    def get(url, tries=4):
+        pages["_tries"][url] = tries
         v = pages[url]
         if isinstance(v, Exception):
             raise v
@@ -48,7 +50,7 @@ def test_refresh_writes_markdown_images_and_index(web):
     assert text.startswith(f"<!-- source: {URLS['grindout']} · updated: 2026-07-20 -->\n")
     assert "![](grindout/img-00.png)" in text and "![Fuses](grindout/img-01.webp)" in text
     folder = guides.folder() / "deep-stone-crypt"
-    assert (folder / "grindout" / "img-01.webp").read_bytes() == b"WEBP"
+    assert (folder / "grindout" / "img-01.webp").read_bytes() == WEBP
     assert "![Basement](shacknews/img-00.jpg)" in md("shacknews") and "updated: 2024-01-10" in md("overgear")
     index = (folder / "index.md").read_text(encoding="utf-8")
     assert "| shacknews | 2026-02-01 |" in index and "| 2 |" in index
@@ -100,3 +102,44 @@ def test_page_error_without_cache_is_an_error(web):
 def test_unknown_raid():
     assert guides.refresh(only=["vault-of-nope"])["errors"] == [
         "unknown raid: vault-of-nope (raids: deep-stone-crypt)"]
+
+
+
+
+def test_image_type_from_magic_bytes_and_html_is_unavailable(web):
+    web["https://grindout.com/storage/a.png"] = b"RIFF\x00\x00\x00\x00WEBPrest"
+    web["https://cdn.x/b.webp"] = b"<html>error page</html>"
+    guides.refresh()
+    text = md("grindout")
+    assert "![](grindout/img-00.webp)" in text and "![Fuses (image unavailable)]()" in text
+
+
+def test_image_failure_keeps_the_previous_guide_and_is_stale(web):
+    web["https://grindout.com/storage/a.png"], web["https://cdn.x/b.webp"] = PNG, JPEG
+    guides.refresh()
+    before = md("grindout")
+    web[URLS["grindout"]] = GRIND.replace("Scanner upstairs.", "Scanner upstairs now.").encode()
+    web["https://cdn.x/b.webp"] = OSError("cdn down")
+    r = guides.refresh(force=True)
+    assert r["stale"] == ["deep-stone-crypt/grindout.md"] and md("grindout") == before
+    assert (guides.folder() / "deep-stone-crypt" / "grindout" / "img-01.jpg").read_bytes() == JPEG
+
+
+def test_images_downloaded_once_without_retries(web):
+    guides.refresh()
+    assert {t for u, t in web["_tries"].items() if u not in URLS.values()} == {1}
+
+
+def test_only_http_images(web):
+    from shell.sources.guides import extract
+    _, images = extract.to_markdown('<img src="file:///C:/secret.png"><img src="DATA:image/png;base64,x">'
+                                    '<img src="https://a.b/c.png">', "https://grindout.com/x")
+    assert images == [("https://a.b/c.png", "")]
+
+
+def test_index_fetched_is_the_fetch_date_not_the_change_date(web, monkeypatch):
+    guides.refresh()
+    monkeypatch.setattr(guides, "_today", lambda: "2027-01-01")
+    guides.refresh(force=True)                                   # same text: nothing changed, but fetched today
+    index = (guides.folder() / "deep-stone-crypt" / "index.md").read_text(encoding="utf-8")
+    assert index.count("| 2027-01-01 |") == 3

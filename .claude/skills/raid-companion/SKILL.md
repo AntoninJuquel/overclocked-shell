@@ -26,9 +26,11 @@ is "not in the guides". Raid and encounter ids: `deep-stone-crypt`; `desolation`
      goes in `conflicts` ("Shacknews (2026-02-01): 5 panels per side; Grindout (2026-07-20) does not number them").
      What no guide covers goes in `gaps`.
    - **Positions:** a spot gets `pos` [x, y] on its floor's 0-100 grid only from a guide's text or image, with
-     `pos_source` saying which ("shacknews image 4", "grindout text: left of the door"); otherwise `pos: null` —
+     `pos_source` saying which, starting with the guide ("shacknews image 4", "grindout text: left of the door"); otherwise `pos: null` —
      it is listed beside the map, not drawn. Never from memory. Rooms (`x, y, w, h`) follow the same rule and stay
      coarse (sides, floors, zones).
+   - **Spot ids** are unique across the raid (renames are per raid): prefix them with the encounter
+     (`cs-panel-dark-1`, `ta-bucket-3`).
    - **Names:** the guides' own labels ("Panel 3 (left)", "Orange zone"). No LFG names the guides don't use.
    - Roles: the standard split for 6 (counts sum to 6). Steps: short, imperative, in the order they happen.
    - Format: `{"raid", "encounter", "name", "sources": [{"guide", "updated"}], "floors": [{"id", "name",

@@ -94,3 +94,21 @@ def test_renames_round_trip_and_orphans(profile):
     assert raids.load_renames("deep-stone-crypt") == {"panel-l1": "left 1", "gone": "x"}
     assert raids.orphan_renames("deep-stone-crypt") == ["rename for unknown spot gone ignored"]
     assert raids.save_rename("deep-stone-crypt", "gone", None) == {"panel-l1": "left 1"}
+
+
+@pytest.mark.parametrize("source,ok", [("shacknews image 3", True), ("grindout text: left of the door", True),
+                                       ("memory", False), ("my best guess", False), ("reddit image 2", False)])
+def test_pos_source_names_a_cached_guide(source, ok):
+    problems = bad(spots__0__pos_source=source)
+    assert ("spot terminal: pos_source must name a guide's image or text" not in problems) is ok
+
+
+def test_spot_ids_unique_across_the_raid(profile):
+    other = copy.deepcopy(ENC)
+    other["encounter"] = "atraks-1"
+    raids.folder("deep-stone-crypt").mkdir(parents=True)
+    (raids.folder("deep-stone-crypt") / "atraks-1.json").write_text(json.dumps(other), encoding="utf-8")
+    assert raids.shared_ids("deep-stone-crypt", "crypt-security", ENC) == [
+        "spot terminal: also in atraks-1 (prefix spot ids with the encounter)",
+        "spot panel-l1: also in atraks-1 (prefix spot ids with the encounter)"]
+    assert raids.shared_ids("deep-stone-crypt", "atraks-1", other) == []   # a file is not compared with itself
