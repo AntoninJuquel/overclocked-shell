@@ -1,0 +1,97 @@
+import copy
+
+from shell.engines import share
+
+
+def plug(name, category, coll=1, type_name="Armor Mod"):
+    return {"displayProperties": {"name": name}, "itemType": 19, "itemTypeDisplayName": type_name,
+            "collectibleHash": coll, "plug": {"plugCategoryIdentifier": category}}
+
+
+DEFS = {
+    "100": {"displayProperties": {"name": "Prismatic Warlock"}, "itemType": 16, "classType": 2,
+            "sockets": {"socketEntries": [{"singleInitialItemHash": h} for h in
+                                          (900, 901, 902, 903, 904, 907, 905, 905, 906, 906, 906)]}},
+    "101": {"displayProperties": {"name": "Prismatic Warlock"}, "itemType": 20, "classType": 3},   # not a subclass
+    "900": plug("Empty Super Socket", "warlock.prism.supers"),
+    "901": plug("Empty Grenade Socket", "warlock.prism.grenades"),
+    "902": plug("Empty Melee Socket", "warlock.prism.melee"),
+    "903": plug("Empty Class Socket", "warlock.prism.class_abilities"),
+    "904": plug("Empty Jump Socket", "warlock.prism.movement"),
+    "905": plug("Empty Aspect Socket", "warlock.prism.aspects"),
+    "906": plug("Empty Fragment Socket", "shared.prism.fragments"),
+    "907": plug("Transcendence", "warlock.prism.transcendence"),
+    "10": plug("Song of Flame", "warlock.solar.supers"),
+    "11": plug("Song of Flame", "warlock.prism.supers"),
+    "12": plug("Storm Grenade", "warlock.prism.grenades"),
+    "13": plug("Arcane Needle", "warlock.prism.melee"),
+    "14": plug("Phoenix Dive", "warlock.prism.class_abilities"),
+    "15": plug("Burst Glide", "warlock.prism.movement"),
+    "16": plug("Feed the Void", "warlock.prism.aspects"),
+    "17": plug("Bleak Watcher", "warlock.prism.aspects"),
+    "18": plug("Facet of Purpose", "shared.prism.fragments"),
+    "19": plug("Facet of Courage", "shared.prism.fragments"),
+    "20": plug("Ashes to Assets", "enhancements.v2_head"),
+    "21": plug("Ashes to Assets", "enhancements.v2_head", coll=None),         # artifact-discounted copy
+    "22": plug("Grenade Mod", "enhancements.v2_general"),
+    "23": plug("Balanced Tuning", "core.gear_systems.armor_tiering.plugs.tuning.mods"),
+    "24": plug("Firepower", "enhancements.v2_arms"),
+    "50": {"displayProperties": {"name": "Getaway Artist"}, "itemType": 2, "inventory": {"tierType": 6}},
+}
+SHEET = {
+    "name": "Getaway Buddy", "class": "Warlock", "concept": "Storm Grenade spam.",
+    "subclass": {"element": "Prismatic", "super": "Song of Flame",
+                 "abilities": {"grenade": "Storm Grenade", "melee": "Arcane Needle", "class": "Phoenix Dive",
+                               "jump": "Burst Glide"},
+                 "aspects": ["Feed the Void", "Bleak Watcher"], "fragments": ["Facet of Purpose", "Facet of Courage"]},
+    "intent": {"exotic": {"name": "Getaway Artist"},
+               "stats": {"minimums": {"Grenade": 150, "Weapons": 100}, "priority": ["Grenade", "Super"]},
+               "sets": [{"set": "Great Hunt", "pieces": 4}],
+               "armor_mods": {"Helmet": ["Ashes to Assets"], "Gauntlets": ["Firepower"]},
+               "artifact": {"name": "Hunter's Journal", "perks": ["Shieldcrush"]}},
+    "resolved": {
+        "armor": [{"slot": "Helmet", "itemId": "a1", "name": "Hood", "stat_mod": "Grenade Mod",
+                   "tuning": "Balanced Tuning", "mods": ["Ashes to Assets", "Mystery Mod"]},
+                  {"slot": "Gauntlets", "itemId": "a2", "name": "Getaway Artist", "stat_mod": "Grenade Mod",
+                   "tuning": "Balanced Tuning", "mods": ["Firepower"]},
+                  {"slot": "Chest", "itemId": "gone", "name": "Robes", "mods": []}],
+        "weapons": [{"slot": "Kinetic", "itemId": "w1", "name": "DECATUR 02", "perks": ["Physic", "Master of Arms"]}],
+        "stats": {"Grenade": 171, "Weapons": 100}},
+}
+ARMOR = [{"itemId": "a1", "itemHash": 1001, "name": "Hood", "rarity": "Legendary"},
+         {"itemId": "a2", "itemHash": 50, "name": "Getaway Artist", "rarity": "Exotic"}]
+WEAPONS = [{"itemId": "w1", "itemHash": 2001, "name": "DECATUR 02"}]
+
+
+def test_loadout_from_resolved_sheet():
+    lo, warnings = share.loadout(SHEET, ARMOR, WEAPONS, DEFS)
+    assert lo["name"] == "Getaway Buddy" and lo["classType"] == 2 and lo["unequipped"] == [] and lo["id"]
+    assert lo["equipped"][:3] == [{"id": "a1", "hash": 1001}, {"id": "a2", "hash": 50}, {"id": "w1", "hash": 2001}]
+    assert lo["equipped"][3] == {"hash": 100, "socketOverrides": {
+        "0": 11, "1": 12, "2": 13, "3": 14, "4": 15, "6": 16, "7": 17, "8": 18, "9": 19}}
+    p = lo["parameters"]
+    assert p["mods"] == [22, 23, 20, 22, 23, 24] and p["exoticArmorHash"] == 50
+    assert p["statConstraints"] == [{"statHash": share.STAT_HASHES["Grenade"], "minStat": 150},
+                                    {"statHash": share.STAT_HASHES["Super"]},
+                                    {"statHash": share.STAT_HASHES["Weapons"], "minStat": 100}]
+    assert warnings == ["Chest: Robes (gone) not in the inventory: left out", "unknown mod: Mystery Mod"]
+    notes = lo["notes"]
+    assert "Storm Grenade spam." in notes and "Kinetic: DECATUR 02 (Physic, Master of Arms)" in notes
+    assert "Artifact: Hunter's Journal — Shieldcrush" in notes and "Sets: 4 × Great Hunt" in notes
+    assert "Not in DIM slots: Mystery Mod" in notes
+
+
+def test_loadout_without_resolved_uses_intent():
+    s = copy.deepcopy(SHEET)
+    del s["resolved"]
+    lo, warnings = share.loadout(s, ARMOR, WEAPONS, DEFS)
+    assert [e.get("id") for e in lo["equipped"]] == [None]                 # subclass only
+    assert lo["parameters"]["mods"] == [20, 24] and lo["parameters"]["exoticArmorHash"] == 50
+    assert warnings == ["no resolved armor or weapons: the link carries the subclass and mods only"]
+
+
+def test_notes_are_capped():
+    s = copy.deepcopy(SHEET)
+    s["concept"] = "x" * 3000
+    lo, _ = share.loadout(s, ARMOR, WEAPONS, DEFS)
+    assert len(lo["notes"]) == share.MAX_NOTES and lo["notes"].endswith("…")
