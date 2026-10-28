@@ -422,3 +422,8 @@ def test_aegis_needs_warns_when_weapon_tabs_are_missing(aegis_dir):
     assert warnings == ["Aegis weapon tabs missing: Shopping List weapons may be taken for exotic armor "
                         "(call refresh_references(source='aegis'))"]
     assert complete is False
+
+
+def test_run_skips_scratch_sheets(tmp_path):
+    doc, _, bdir = _run(tmp_path, {"bravery": {**SHEET, "scratch": True}})
+    assert doc["needs"] == [] and not (bdir / "bravery.md").exists()

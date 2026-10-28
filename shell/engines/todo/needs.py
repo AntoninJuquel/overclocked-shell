@@ -358,7 +358,10 @@ def run(builds_dir, todo_dir, items, sets_by_hash, costs, set_slots_for, today, 
     paths = sorted(Path(builds_dir).glob("*.json"))
     for path in paths:
         try:
-            n, w, ok = build_needs(sheet_mod.load(path), path.stem, items, sets_by_hash, costs, set_slots_for)
+            s = sheet_mod.load(path)
+            if s.get("scratch"):   # a throwaway roll (Ultimate Bravery), not a build to farm for
+                continue
+            n, w, ok = build_needs(s, path.stem, items, sets_by_hash, costs, set_slots_for)
         except (ValueError, OSError) as e:   # SheetError, unknown fragment or mod, missing exotic
             warnings.append(f"{path.stem}: {e}")
             complete = False
@@ -375,7 +378,9 @@ def run(builds_dir, todo_dir, items, sets_by_hash, costs, set_slots_for, today, 
                                    keep=tuple(keep)))
     for path in paths:
         try:
-            sheet_mod.save(path, sheet_mod.load(path), needs_dir=todo_dir)
+            s = sheet_mod.load(path)
+            if not s.get("scratch"):
+                sheet_mod.save(path, s, needs_dir=todo_dir)
         except (ValueError, OSError):
             pass   # already reported in the warnings
     return doc
