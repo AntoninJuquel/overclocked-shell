@@ -77,3 +77,9 @@ def test_render_changes():
     assert "### Boss Damage — Swap\n\n- Old: removed\n" in md
     assert "No changes." in diff.render_changes([], "2026-10-09")
     assert "None.\n" in diff.render_changes(entries[1:], "2026-10-09")
+
+
+def test_build_names_skips_scratch_sheets(tmp_path):
+    (tmp_path / "bravery.json").write_text(json.dumps({"scratch": True, "subclass": {"aspects": ["Knockout"]}}),
+                                           encoding="utf-8")
+    assert diff.build_names(tmp_path) == {}

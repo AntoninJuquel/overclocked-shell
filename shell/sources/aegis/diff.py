@@ -42,7 +42,7 @@ def build_names(builds_dir):
             s = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        if not isinstance(s, dict):
+        if not isinstance(s, dict) or s.get("scratch"):   # scratch: a throwaway roll, not a build
             continue
         intent, sub, res = s.get("intent") or {}, s.get("subclass") or {}, s.get("resolved") or {}
         names = [(intent.get("exotic") or {}).get("name"), *(sub.get("aspects") or []), *(sub.get("fragments") or []),

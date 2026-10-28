@@ -23,12 +23,13 @@ class FakeManifest:
 def root(tmp_path, monkeypatch):
     monkeypatch.setattr(paths, "profile_dir", lambda: tmp_path / "profile")
     monkeypatch.setattr(paths, "cache_dir", lambda: tmp_path / "cache")
-    monkeypatch.setattr(catalog, "load_catalog", lambda manifest: {"subclass": make_idx()})
+    monkeypatch.setattr(catalog, "load_catalog", lambda manifest: {"subclass": make_idx(), "costs": {"Grenade Mod": 3}})
     monkeypatch.setattr(tool, "owned_elements", lambda ctx, cls: ["Arc"])
     monkeypatch.setattr(tool, "RNG", random.Random(7))
     inv = tmp_path / "profile" / "inventory"
     inv.mkdir(parents=True)
-    armor = [dict(x, energy="0/10") for x in ARMOR]
+    armor = [dict(x, energy="0/10", plugs=["General Armor Mod: Grenade Mod", "General Armor Mod: Balanced Tuning",
+                                          "Helmet Armor Mod: Hands-On"]) for x in ARMOR]
     (inv / "armor.json").write_text(json.dumps(armor), encoding="utf-8")
     (inv / "weapons.json").write_text(json.dumps(WEAPONS), encoding="utf-8")
     return tmp_path
@@ -74,3 +75,11 @@ def test_part_errors(root):
 def test_no_exotic_armor(root):
     with pytest.raises(ToolError, match="no exotic armor for Titan"):
         call({"character": "titan"})
+
+
+def test_roll_keeps_installed_stat_mods_and_tunings_and_is_scratch(root):
+    call({"character": "warlock"})
+    s = sheet.load(sheet.path_for("bravery"))
+    assert s["scratch"] is True
+    assert all(a["stat_mod"] == "Grenade Mod" and a["tuning"] == "Balanced Tuning" for a in s["resolved"]["armor"])
+    assert all(len(a["mods"]) <= 2 for a in s["resolved"]["armor"])     # 10 energy - 3 for the stat mod: 7 = 2 x 3

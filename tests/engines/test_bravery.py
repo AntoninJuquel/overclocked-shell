@@ -108,3 +108,10 @@ def test_slot_mods_base_copy():
             "3": mod("Grenade Mod", "enhancements.v2_general", 3, 9), "4": mod("Recuperation",
                                                                                "enhancements.v2_legs", 1, 7)}
     assert bravery.slot_mods(defs) == {"Helmet": {"Ashes to Assets": 3}, "Legs": {"Recuperation": 1}}
+
+
+def test_mods_budget_keeps_room_for_the_installed_stat_mod():
+    entries = [{"slot": "Helmet", "itemId": "h"}]
+    for seed in range(30):
+        mods = bravery.roll_mods(entries, [a("h", "Helmet", energy="5/4")], MODS, random.Random(seed), {"h": 3})
+        assert sum(MODS["Helmet"][m] for m in mods["Helmet"]) <= 1

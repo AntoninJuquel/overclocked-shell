@@ -10,7 +10,7 @@ from shell.context import Context
 from shell.engines import bravery
 from shell.engines.account import character_id, get_profile, primary_membership
 from shell.engines.builds import catalog, sheet
-from shell.engines.builds.equip_plan import SUBCLASS_ITEMS
+from shell.engines.builds.equip_plan import SUBCLASS_ITEMS, _installed
 from shell.engines.builds.snapshot import read_snapshot
 from shell.engines.loadout import equipped
 from shell.mcp import tool
@@ -30,8 +30,19 @@ def owned_elements(ctx: Context, cls: str) -> list[str]:
 
 
 def _mods(ctx, armor_entries, armor_items):
+    """Random slot mods; the installed stat mod and tuning stay (written in the entry so equipping keeps them)."""
+    items = {x["itemId"]: x for x in armor_items}
+    costs = catalog.load_catalog(ctx.manifest)["costs"]
+    reserved = {}
+    for e in armor_entries:
+        stat, tuning, _ = _installed(items.get(e["itemId"], {}))
+        e.pop("stat_mod", None), e.pop("tuning", None)
+        if stat:
+            e["stat_mod"], reserved[e["itemId"]] = stat[0], costs.get(stat[0], 0)
+        if tuning:
+            e["tuning"] = tuning[0]
     pool = bravery.slot_mods(ctx.manifest.table("DestinyInventoryItemDefinition", keep=False))
-    return bravery.roll_mods(armor_entries, armor_items, pool, RNG)
+    return bravery.roll_mods(armor_entries, armor_items, pool, RNG, reserved)
 
 
 def _exotic(armor_entries, armor_items):
@@ -59,7 +70,7 @@ previews). Reads the inventory snapshot: refresh_inventory first."""
             weapon_items, _ = read_snapshot("weapons")
             if part == "all":
                 s = {"name": f"Ultimate Bravery — {date.today().isoformat()}", "class": cls,
-                     "activity": "Ultimate Bravery", "concept": "Random build, chaos on purpose.",
+                     "activity": "Ultimate Bravery", "concept": "Random build, chaos on purpose.", "scratch": True,
                      "subclass": None, "intent": {"exotic": {"name": "?"}}, "resolved": {}}
             else:
                 if not path.exists():

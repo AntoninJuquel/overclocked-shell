@@ -13,7 +13,6 @@ ARMOR_SLOTS = ("Helmet", "Gauntlets", "Chest", "Legs", "Class Item")
 MOD_SLOTS = {"enhancements.v2_head": "Helmet", "enhancements.v2_arms": "Gauntlets",
              "enhancements.v2_chest": "Chest", "enhancements.v2_legs": "Legs",
              "enhancements.v2_class_item": "Class Item"}
-STAT_MOD_RESERVE = 3  # shortcut: room kept for the installed stat mod (max cost 3); read its real cost if it bites
 
 
 def _usable(item, cls):
@@ -74,16 +73,17 @@ def _capacity(item):
     return int(m.group(1)) if m else 0
 
 
-def roll_mods(armor_entries, armor_items, slot_mods: dict, rng) -> dict[str, list[str]]:
+def roll_mods(armor_entries, armor_items, slot_mods: dict, rng, reserved: dict | None = None) -> dict[str, list[str]]:
     """Per armor slot, up to 3 random slot mods whose total cost fits the piece (repeats allowed, as in game).
+    `reserved`: {itemId: energy kept for what stays installed (the stat mod)}.
     shortcut: mutually exclusive mods are not filtered; the equip preview shows a refused socket."""
     items = {x["itemId"]: x for x in armor_items}
     out = {}
     for e in armor_entries:
-        budget = max(0, _capacity(items.get(e["itemId"], {})) - STAT_MOD_RESERVE)
+        budget = _capacity(items.get(e["itemId"], {})) - (reserved or {}).get(e["itemId"], 0)
         mods, pool = [], slot_mods.get(e["slot"], {})
         for _ in range(UTILITY_SOCKETS):
-            fits = sorted(name for name, cost in pool.items() if cost <= budget)
+            fits = sorted(name for name, cost in pool.items() if cost <= budget) if budget > 0 else []
             if not fits:
                 break
             pick = rng.choice(fits)
