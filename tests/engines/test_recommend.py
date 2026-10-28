@@ -40,7 +40,7 @@ def write_ratings(aegis):
         {"_name": "Unowned Arc", "Tier": "S", "#": "3", "Energy": "Arc"},
         {"_name": "Too Low", "Tier": "B", "#": "9", "Energy": "Strand"}])
     write_aegis(aegis, "endgame", "exotic-weapons", [
-        {"_name": "Sweet Business", "Tier": "B", "#": "1", "Type": "Auto Rifle"}])
+        {"_name": "Sweet Business", "Tier": "B", "#": "1", "Type": "primary"}])
 
 
 def test_general_ranking_one_line_per_name_and_notes(aegis):
@@ -144,3 +144,32 @@ def test_long_dps_warning_is_capped(aegis):
     items = [w(str(i), f"Gun {i:02}") for i in range(12)]
     assert recommend.recommend(items, {}, "warlock", role="dps")["warnings"] == [
         "no Aegis DPS row for: " + ", ".join(f"Gun {i:02}" for i in range(10)) + " … and 2 more"]
+
+
+def test_dps_ties_go_to_the_better_grade(aegis):
+    write_dps(aegis)
+    items = [w("30", "Alpha Rocket", type_="Rocket Launcher", slot="Power", frame="Aggressive Frame", ammo="Heavy"),
+             w("31", "Zulu Rocket", type_="Rocket Launcher", slot="Power", frame="Aggressive Frame", ammo="Heavy")]
+    picks = recommend.recommend(items, {"31": "S #1"}, "warlock", role="dps")["picks"]
+    assert [x.split(" | ")[2] for x in picks] == ["Zulu Rocket", "Alpha Rocket"]
+
+
+def test_exotic_dps_row_of_its_own_family_and_intrinsic(aegis):
+    write_aegis(aegis, "boss", "sustained", [
+        {"_name": "Cull's Shadow", "Name": "Cull's Shadow\ncorrupted melees", "Family": "melee", "DPS": "4,018"},
+        {"_name": "Cull's Shadow", "Name": "Cull's Shadow\nwith corruption", "Family": "fusion", "DPS": "2,373"},
+        {"_name": "Ergo Sum", "Name": "Ergo Sum\ncaster frame, The Perfect Fifth", "Family": "sword", "DPS": "7,112"},
+        {"_name": "Ergo Sum", "Name": "Ergo Sum\nvortex frame, Unplanned Reprieve", "Family": "sword", "DPS": "5,147"}])
+    items = [w("40", "Cull's Shadow", type_="Fusion Rifle", rarity="Exotic", frame="Corruption"),
+             w("41", "Ergo Sum", type_="Sword", rarity="Exotic", frame="Unplanned Reprieve", location="Warlock",
+               equipped=True),
+             w("42", "Ergo Sum", type_="Sword", rarity="Exotic", frame="The Perfect Fifth")]
+    picks = recommend.recommend(items, {}, "warlock", role="dps")["picks"]
+    assert picks[0].startswith("1 | 42 | Ergo Sum") and "DPS 7,112" in picks[0]
+    assert "DPS 2,373 (Cull's Shadow: with corruption)" in picks[1]
+
+
+def test_exotic_ergo_without_its_intrinsic_row_takes_the_best(aegis):
+    write_dps(aegis)
+    picks = recommend.recommend([ROCKETS[2]], {}, "warlock", role="dps")["picks"]
+    assert "DPS 15,000" in picks[0]

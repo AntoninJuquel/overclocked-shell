@@ -13,7 +13,9 @@ the Compendium or the account.
 1. **Situation.** Character (ask if unclear, else the one they named last), activity or encounter, role (boss
    damage → `role="dps"`; anything else → `general`), the slot or weapon to replace. One question if the activity
    is unclear; otherwise assume and say what you assumed.
-2. **Fresh data.** `refresh_inventory()`. If Aegis is more than 7 days old, follow the `aegis` skill.
+2. **Fresh data.** `refresh_inventory()`. If it fails, say the picks come from the snapshot of `<snapshot>` (in
+   every `recommend_weapons` result) and that locations and swaps may be out of date. If Aegis is more than 7
+   days old, follow the `aegis` skill.
 3. **What they wear.** `get_equipped(character)`: subclass, aspects and fragments (an element synergy they
    give comes from the Compendium, not memory), leg-armor Weapon Surge mods (prefer that element), active
    artifact perks.

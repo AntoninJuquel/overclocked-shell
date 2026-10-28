@@ -30,11 +30,16 @@ def _words(text):
 
 
 def dps_row(w, rows):
-    """The DPS row of an owned weapon, or None. Exotics match on their name. A legendary matches an archetype row
+    """The DPS row of an owned weapon, or None. Exotics match on their name, preferring rows of their type's family
+    and whose setup names their intrinsic (Ergo Sum: The Perfect Fifth vs Unplanned Reprieve).
+    A legendary matches an archetype row
     ("Aggressive rocket launcher") when the row's family is its type's, the row name starts with its frame and the
     rest are words of its type. shortcut: the row's perks are shown, not matched; match them if picks mislead."""
     if w.get("rarity") == "Exotic":
         found = [r for r in rows if norm(r["_name"]) == norm(w["name"])]
+        found = [r for r in found if r.get("Family") in FAMILIES.get(w["type"], ())] or found
+        intrinsic = (w.get("frame") or "").lower()
+        found = [r for r in found if intrinsic and intrinsic in (r.get("Name") or "").lower()] or found
     else:
         frame, type_words = _words(w.get("frame")), set(_words(w["type"]))
         found = [r for r in rows if r.get("Family") in FAMILIES.get(w["type"], ())
@@ -44,7 +49,7 @@ def dps_row(w, rows):
 
 
 def _dps(row):
-    m = re.search(r"\d[\d,]*(?:\.\d+)?", row.get("DPS") or "")
+    m = re.search(r"\d[\d,]*(?:\.\d+)?", (row or {}).get("DPS") or "")
     return float(m.group().replace(",", "")) if m else 0.0
 
 
@@ -68,11 +73,16 @@ def _note(w, cls, worn):
     return " · ".join(parts)
 
 
-def _best_copies(rows, grades, cls):
+def _grade(grades, w):
+    g = grades.get(w["itemId"])
+    return weapons._grade_key(g) if g else UNRATED
+
+
+def _best_copies(rows, grades, cls, first=lambda w: 0):
+    """One copy per weapon: lowest `first` (dps role: its DPS row), then grade, equipped here, locked."""
     def key(w):
-        g = grades.get(w["itemId"])
-        return (g is None, *(weapons._grade_key(g) if g else (0, 0)),
-                not (w.get("equipped") and w.get("location") == cls), not w.get("locked"), w["itemId"])
+        return (first(w), _grade(grades, w), not (w.get("equipped") and w.get("location") == cls),
+                not w.get("locked"), w["itemId"])
 
     best = {}  # by norm(name): "X (Timelost)" and "X (Adept)" are copies of X
     for w in rows:
@@ -86,7 +96,7 @@ def _not_owned(items, type_, element, above):
     owned = {norm(w["name"]) for w in items}
     found = [r for spec in config.weapon_tabs() if spec.weapon_type and type_.lower() in spec.weapon_type.lower()
              for r in lookup.rows("endgame", spec.slug)]
-    found += [r for r in lookup.rows("endgame", "exotic-weapons") if type_.lower() in (r.get("Type") or "").lower()]
+    # Exotic rows are left out: their Type column is the ammo (primary / special / power), not a weapon type.
     found = [r for r in found if norm(r["_name"]) not in owned and lookup.tier_key(r) < above
              and (not element or (r.get("Energy") or "").strip().lower() == element.lower())]
     found.sort(key=lookup.tier_key)
@@ -112,24 +122,26 @@ def recommend(items, grades, character, role="general", slot=None, element=None,
     worn = {w["slot"]: w for w in items if w.get("equipped") and w.get("location") == cls}
     equipped = [" | ".join([s, worn[s]["name"], worn[s]["type"], worn[s]["element"]]
                            + (["exotic"] if worn[s].get("rarity") == "Exotic" else [])) for s in SLOTS if s in worn]
-    copies = _best_copies(weapons.select(items, slot, element, type_), grades, cls)
+    selected = weapons.select(items, slot, element, type_)
     warnings, not_owned = [], []
     if role == "dps":
         rows = lookup.rows("boss", "sustained")
-        matched = [(w, dps_row(w, rows)) for w in copies]
+        row_of = {w["itemId"]: dps_row(w, rows) for w in selected}
+        matched = [(w, row_of[w["itemId"]])
+                   for w in _best_copies(selected, grades, cls, lambda w: -_dps(row_of[w["itemId"]]))]
         missing = [w["name"] for w, r in matched if r is None]
         if missing:
             more = f" … and {len(missing) - 10} more" if len(missing) > 10 else ""
             warnings.append(f"no Aegis DPS row for: {', '.join(missing[:10])}{more}")
-        ranked = sorted(((w, r) for w, r in matched if r is not None), key=lambda wr: (-_dps(wr[1]), wr[0]["name"]))
+        ranked = sorted(((w, r) for w, r in matched if r is not None),
+                        key=lambda wr: (-_dps(wr[1]), _grade(grades, wr[0]), wr[0]["name"]))
         label = _dps_label
     else:
         def key(wr):
-            g = grades.get(wr[0]["itemId"])
-            return (lookup.tier_key(wr[1]) if wr[1] else UNRATED, weapons._grade_key(g) if g else UNRATED,
-                    wr[0]["name"])
+            return lookup.tier_key(wr[1]) if wr[1] else UNRATED, _grade(grades, wr[0]), wr[0]["name"]
 
-        ranked = sorted(((w, lookup.best(lookup.weapon_rows(w["name"]))) for w in copies), key=key)
+        ranked = sorted(((w, lookup.best(lookup.weapon_rows(w["name"]))) for w in _best_copies(selected, grades, cls)),
+                        key=key)
         label = lambda r: f"Aegis {lookup.tier_label(r) if r else '—'}"  # noqa: E731
         if type_:
             not_owned = _not_owned(items, type_, element, key(ranked[0])[0] if ranked else UNRATED)
