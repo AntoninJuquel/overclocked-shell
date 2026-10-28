@@ -16,6 +16,8 @@ def register(mcp: MCPServer, ctx: Context) -> None:
   (cache/aegis/<sheet>/<tab>.md and .json); changes.md lists tier and rank changes and the builds concerned
 - bungie-api: Bungie API endpoints and schemas (cache/bungie-api/*.md)
 - wishlists: the default DIM weapon wishlist (cache/wishlists/)
+- distortions: the hourly Distortion rotation, community-observed (cache/distortions/rotation.json); read it
+  with the distortions tool
 Without force, cached downloads are reused and only rendering runs; force re-downloads. tabs limits the
 Compendium / Aegis to those tab names. Read or grep the Markdown afterwards to answer questions."""
         found = sources()
