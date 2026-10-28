@@ -1,9 +1,11 @@
 """Build tools on the sheets in profile/builds/ and the inventory snapshot refresh_inventory saves."""
+from datetime import date
+
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
 from shell.context import Context
-from shell.engines.builds import inventory, optimize, sheet as sheet_mod
+from shell.engines.builds import artifact, equip_plan as equip_mod, inventory, optimize, sheet as sheet_mod
 from shell.engines.builds.catalog import load_catalog
 from shell.engines.builds.snapshot import read_snapshot
 from shell.engines.builds.stats import fragment_stats
@@ -72,3 +74,27 @@ be optimal; `feasible: false` = best 3 shown with their `deficit`."""
                 raise ToolError(str(e)) from e
             out["written"] = pick
         return {**out, "snapshot": taken, "warnings": warnings}
+
+    @tool(mcp)
+    def equip_plan(slug: str) -> dict:
+        """Equip plan for build sheet `slug`: the write calls to make (equip, subclass / armor / weapon / artifact
+sockets, perks, locks, transfers) without running any. Reads the armor and weapon snapshots: call
+refresh_inventory first. `ready: false` = blocking `problems` (item missing, in the postmaster, equipped on another
+class, invalid subclass or artifact, no resolved armor: re-optimize); `warnings` do not block.
+`expected_armor_stats` = armor totals to check with get_equipped after equipping."""
+        path = sheet_path(slug)
+        armor_items, taken = snapshot("armor")
+        weapon_items, _ = snapshot("weapons")
+        try:
+            s = sheet_mod.load(path)
+            sub = s["subclass"]
+            frag = fragment_stats(sub.get("fragments", []), sub["element"], s["class"])
+            catalog = load_catalog(ctx.manifest)
+            artifacts = artifact.load() if s["intent"].get("artifact") else None
+            plan = equip_mod.build_plan(s, armor_items, weapon_items, frag, date.today(), catalog["subclass"],
+                                        catalog["costs"], artifacts)
+        except ValueError as e:   # SheetError included, missing compendium
+            raise ToolError(str(e)) from e
+        except (KeyError, TypeError, AttributeError) as e:   # malformed snapshot
+            raise ToolError(f"malformed snapshot: {type(e).__name__}: {e}") from e
+        return {**plan, "snapshot": taken}
