@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 
 import httpx
 import pytest
@@ -29,6 +30,7 @@ def server(tmp_path, monkeypatch):
             body = {"destinyMemberships": [{"membershipType": 3, "membershipId": "1"}]}
         else:
             calls.append(request.url.params["components"])
+            time.sleep(0.2)
             body = profile()
         return httpx.Response(200, json={"ErrorCode": 1, "Response": body})
 
@@ -70,4 +72,30 @@ def test_find_loads_on_first_use_only(server):
     call, calls, _ = server
     call("find_weapons", {"type": "auto rifle"})
     call("find_armor")
+    assert len(calls) == 1
+
+
+def test_limit_clamped_and_offset_pages(server):
+    call, _, _ = server
+    page = call("find_armor", {"limit": 1, "offset": 1})
+    assert page["total"] == 3 and page["offset"] == 1 and page["truncated"] is True and len(page["items"]) == 1
+    assert len(call("find_armor", {"limit": -1})["items"]) == 1
+    assert call("find_armor", {"offset": 2})["truncated"] is False
+
+
+def test_class_filter_keeps_any_class_armor(server, monkeypatch):
+    call, _, _ = server
+    DEFS["gear"]["200"][2] = 3
+    try:
+        call("refresh_inventory")
+        assert call("find_armor", {"class_type": "warlock"})["total"] == 3
+    finally:
+        DEFS["gear"]["200"][2] = 1
+
+
+def test_parallel_first_calls_fetch_once(server):
+    from concurrent.futures import ThreadPoolExecutor
+    call, calls, _ = server
+    with ThreadPoolExecutor(2) as pool:
+        list(pool.map(lambda name: call(name), ["find_armor", "find_weapons"]))
     assert len(calls) == 1

@@ -1,5 +1,6 @@
 """Shared services for tools, built on first use so the server starts even without a complete .env."""
-from dataclasses import dataclass
+import threading
+from dataclasses import dataclass, field
 from functools import cached_property
 
 from shell.core.auth import OAuth
@@ -11,6 +12,8 @@ from shell.engines.defs import load_defs
 
 @dataclass
 class Context:
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
+
     @cached_property
     def settings(self) -> Settings:
         return load_settings()
@@ -29,4 +32,5 @@ class Context:
 
     @cached_property
     def defs(self) -> dict:
-        return load_defs(self.manifest)
+        with self._lock:  # parallel tool calls must not build the index (and download tables) twice
+            return self.__dict__.get("defs") or load_defs(self.manifest)

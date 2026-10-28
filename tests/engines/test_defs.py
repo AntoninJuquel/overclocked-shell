@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from shell.engines.defs import build_defs, load_defs
+from shell.engines.defs import SCHEMA, build_defs, load_defs
 
 ITEMS = {
     "1": {"itemType": 3, "displayProperties": {"name": "Gun"}, "itemTypeDisplayName": "Auto Rifle",
@@ -52,11 +52,36 @@ class FakeManifest:
 
 def test_load_defs_cached_per_version(tmp_path):
     d = load_defs(FakeManifest("v1"), tmp_path)
-    assert json.loads((tmp_path / "defs" / "v1.json").read_text())["gear"]["2"][0] == "Helm"
+    assert json.loads((tmp_path / "defs" / f"s{SCHEMA}-v1.json").read_text())["gear"]["2"][0] == "Helm"
     assert load_defs(FakeManifest("v1", fail=True), tmp_path) == d
 
 
 def test_load_defs_new_version_removes_old(tmp_path):
     load_defs(FakeManifest("v1"), tmp_path)
     load_defs(FakeManifest("v2"), tmp_path)
-    assert [p.name for p in (tmp_path / "defs").iterdir()] == ["v2.json"]
+    assert [p.name for p in (tmp_path / "defs").iterdir()] == [f"s{SCHEMA}-v2.json"]
+
+
+def test_cache_file_carries_schema_version(tmp_path):
+    load_defs(FakeManifest("v1"), tmp_path)
+    assert [p.name for p in (tmp_path / "defs").iterdir()] == [f"s{SCHEMA}-v1.json"]
+
+
+def test_context_builds_defs_once_under_parallel_access(tmp_path, monkeypatch):
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+
+    from shell.context import Context
+    from shell.core import paths
+
+    class Slow(FakeManifest):
+        def table(self, name, keep=True):
+            time.sleep(0.1)
+            return super().table(name, keep)
+
+    monkeypatch.setattr(paths, "cache_dir", lambda: tmp_path)
+    ctx, manifest = Context(), Slow("v1")
+    ctx.__dict__["manifest"] = manifest
+    with ThreadPoolExecutor(2) as pool:
+        a, b = pool.map(lambda _: ctx.defs, range(2))
+    assert a is b and len(manifest.calls) == 3

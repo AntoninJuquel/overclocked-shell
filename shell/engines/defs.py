@@ -12,6 +12,7 @@ from shell.core import paths
 GEAR_TYPES = {2, 14, 16, 21, 22, 24, 28}
 MISC_TYPES = {1, 9}
 MISC_BUCKET = 1469714392
+SCHEMA = 1  # bump when build_defs output changes, so existing caches are rebuilt
 
 
 def build_defs(items: dict, stats: dict, socket_categories: dict) -> dict:
@@ -42,7 +43,7 @@ def build_defs(items: dict, stats: dict, socket_categories: dict) -> dict:
 
 def load_defs(manifest, cache_dir: Path | None = None) -> dict:
     root = (cache_dir or paths.cache_dir()) / "defs"
-    file = root / f"{re.sub(r'[^\w.-]', '_', manifest.version())}.json"
+    file = root / f"s{SCHEMA}-{re.sub(r'[^\w.-]', '_', manifest.version())}.json"
     if file.exists():
         return json.loads(file.read_text(encoding="utf-8"))
     defs = build_defs(manifest.table("DestinyInventoryItemDefinition", keep=False),
