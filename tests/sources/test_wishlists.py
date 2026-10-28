@@ -29,12 +29,13 @@ def test_norms():
 
 
 def test_local_path_returned_as_is(tmp_path):
-    assert wishlists.fetch(str(tmp_path / "mine.txt")) == tmp_path / "mine.txt"
+    assert wishlists.fetch(str(tmp_path / "mine.txt")) == (tmp_path / "mine.txt", False)
 
 
 def test_url_cached_under_basename(monkeypatch, isolated_cache):
     monkeypatch.setattr(fetch, "_get", lambda url: WISHLIST.encode())
-    path = wishlists.fetch("https://example.com/a/My List.txt")
+    path, stale = wishlists.fetch("https://example.com/a/My List.txt")
+    assert stale is False
     assert path == isolated_cache / "cache" / "wishlists" / "My_List.txt"
     assert "dimwishlist:" in path.read_text(encoding="utf-8")
 

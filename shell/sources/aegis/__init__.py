@@ -116,7 +116,8 @@ def refresh(force: bool = False, only: list[str] | None = None, sheet: str | Non
                 results.append(_previous(s, spec, False, note))
 
     write_if_changed(out / "index.md", render.render_index(results, today))
-    write_if_changed(out / "changes.md", diff.render_changes(changes, today))
+    if changes or not (out / "changes.md").exists():  # a no-change run must not erase changes not read yet
+        write_if_changed(out / "changes.md", diff.render_changes(changes, today))
     changed = []
     for e in changes:
         line = f"{e['tab']} — {e['name']}: {diff.describe(e)}"

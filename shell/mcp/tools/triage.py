@@ -68,17 +68,20 @@ def _summary(rows: list[dict], lock: list[str], unlock: list[str], review: list[
 
 
 def apply_plan(actions, locations: dict, class_of: dict, plan: dict) -> dict:
-    """Locks then unlocks the saved ids; postmaster items are skipped (the game cannot lock them)."""
-    result = {"locked": 0, "unlocked": 0, "skipped": 0, "failed": []}
+    """Locks then unlocks the saved ids; postmaster items are skipped (the game cannot lock them).
+    Every id lands in exactly one of locked / unlocked / already / skipped / failed."""
+    result = {"locked": 0, "unlocked": 0, "already": 0, "skipped": [], "failed": []}
     for key, locked in (("lock", True), ("unlock", False)):
         ids = []
         for item_id in plan[key]:
-            if (locations.get(item_id) or {}).get("where") == "postmaster":
-                result["skipped"] += 1
+            loc = locations.get(item_id) or {}
+            if loc.get("where") == "postmaster":
+                result["skipped"].append({"itemId": item_id, "name": loc["name"], "result": "postmaster (skipped)"})
             else:
                 ids.append(item_id)
         done = set_lock(actions, locations, class_of, ids, locked, dry_run=False)
         result["locked" if locked else "unlocked"] += done["changed"]
+        result["already"] += sum(i["result"].startswith("already") for i in done["items"])
         result["failed"] += [i for i in done["items"] if i["result"] == "not found" or i["result"].startswith("failed")]
     return result
 
@@ -104,12 +107,15 @@ that would be unlocked, excluding legacy. Then call apply_triage("armor")."""
 fresh read of every weapon: keep wishlist rolls (one copy per trait combination), crafted weapons and one copy
 per exotic roll. Saves profile/triage/weapons.json and weapons.csv. `review` lists weapons now locked that
 would be unlocked. Then call apply_triage("weapons")."""
-        path = wishlists.fetch(wishlist or wishlists.DEFAULT_WISHLIST, force=refresh_wishlist)
+        try:
+            path, stale = wishlists.fetch(wishlist or wishlists.DEFAULT_WISHLIST, force=refresh_wishlist)
+        except OSError as e:
+            raise ToolError(f"wishlist: {e}") from e
         plug_names = {k: v["n"] for k, v in ctx.defs["plugs"].items()}
         rows = decide_weapons(read_rows(ctx, "weapons"), *wishlists.load(path, plug_names))
         lock, unlock = _save("weapons", rows)
         review = [r for r in rows if r["decision"] == "JUNK" and r["locked"]]
-        return {**_summary(rows, lock, unlock, review), "wishlist": str(path)}
+        return {**_summary(rows, lock, unlock, review), "wishlist": str(path), "wishlist_stale": stale}
 
     @tool(mcp)
     def apply_triage(kind: str) -> dict:

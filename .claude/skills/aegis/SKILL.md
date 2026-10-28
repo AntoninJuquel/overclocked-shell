@@ -14,8 +14,7 @@ skill).
    `refresh_references(source="aegis", force=true)` (`tabs: ["<tab>"]` for some tabs). Relay to the player the
    `changed` lines that start with a build slug (`<build>: <tab> — <name>: …`, i.e. changes touching their builds
    in `profile/builds/`; detail in `cache/aegis/changes.md`) and offer to re-optimize those builds. `changes.md`
-   is overwritten on every refresh: relay the "Builds concerned" right after a refresh, or the list is lost at
-   the next one. Mention any `errors` and `unhandled` tabs.
+   is replaced by the next refresh that finds changes: relay the "Builds concerned" right after a refresh. Mention any `errors` and `unhandled` tabs.
 2. Read `cache/aegis/index.md`: each tab's file, the date Aegis updated it, its state. Flag a failed or old tab
    the answer relies on.
 3. Search without loading the whole tab: `grep -n -e "^## " -e "^### <name>" cache/aegis/<folder>/<file>.md`,

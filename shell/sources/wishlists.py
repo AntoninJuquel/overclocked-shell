@@ -31,11 +31,13 @@ def _download(url: str, force: bool) -> tuple[Path, bool, bool]:
     return path, stale, text != before
 
 
-def fetch(source: str = DEFAULT_WISHLIST, force: bool = False) -> Path:
-    """Local path, or URL cached under its sanitised file name."""
+def fetch(source: str = DEFAULT_WISHLIST, force: bool = False) -> tuple[Path, bool]:
+    """(path, stale): a local path, or a URL cached under its sanitised file name. Raises OSError when a URL
+    cannot be downloaded (or is not a wishlist) and nothing is cached."""
     if not re.match(r"https?://", source):
-        return Path(source)
-    return _download(source, force)[0]
+        return Path(source), False
+    path, stale, _ = _download(source, force)
+    return path, stale
 
 
 def refresh(force: bool = False, only: list[str] | None = None) -> dict:

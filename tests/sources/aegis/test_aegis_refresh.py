@@ -89,6 +89,16 @@ def test_refresh_names_concerned_build(env):
     assert changed == ["x: Good — Kindled Orchid: Tier S → A"]
 
 
+def test_no_change_run_keeps_unread_changes(env):
+    out, builds = env
+    (builds / "x.json").write_text(json.dumps({"intent": {"exotic": {"name": "Kindled Orchid"}}}), encoding="utf-8")
+    aegis.refresh()
+    PAGES["2"] = sheet_html([["Name", "#", "Tier"], ["Kindled Orchid", "1", "A"], ["Fresh", "2", "B"]])
+    aegis.refresh()
+    assert aegis.refresh()["changed"] == []
+    assert "Kindled Orchid" in (out / "changes.md").read_text(encoding="utf-8")
+
+
 def test_unreadable_status_keeps_previous_update_dates(env, monkeypatch):
     out, _ = env
     aegis.refresh()
