@@ -91,7 +91,7 @@ BOSS = SheetConfig(
         TabSpec("Sustained", "sustained", ("Name", "DPS"), ("Name",), 150, tier=None),
         TabSpec("Swap", "swap", ("Name", "true DPS"), ("Name",), 120, tier=None),
         TabSpec("Bosses", "bosses", ("Activity", "Boss"), ("Activity", "Boss"), 40, tier=None),
-        TabSpec("Fireteam", "fireteam", ("Category", "Name", "Boss"), ("Name", "Specifications"), 40,
+        TabSpec("Fireteam", "fireteam", ("Category", "Name", "Boss"), ("Name",), 40,
                 pattern=r"Fireteam( \(S\d+\))?", tier=None),
         TabSpec("Pack Hunter", "pack-hunter", ("Modifiers", "Weapon"), ("Modifiers",), 4, tier=None),
         TabSpec("Bolt Charge", "bolt-charge", ("Source",), ("Source",), 12, tier=None),
