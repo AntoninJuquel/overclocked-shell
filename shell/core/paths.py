@@ -1,4 +1,4 @@
-"""Install-root paths: the MCP server may be launched from any folder (user-scope registration)."""
+"""Install-root paths: never depend on the launch folder (CLI or MCP server)."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]

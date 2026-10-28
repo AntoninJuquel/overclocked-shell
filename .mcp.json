@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "overclocked-shell": {
+      "command": "uv",
+      "args": ["run", "shell-mcp"]
+    }
+  }
+}

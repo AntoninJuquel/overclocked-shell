@@ -1,6 +1,7 @@
 # Overclocked Shell
 
-Destiny 2 companion for Claude Code: a Python MCP server (`shell/mcp`) plus skills (`.claude/skills/`).
+Destiny 2 companion for Claude Code: a Python MCP server (`shell/mcp`, declared in `.mcp.json`) plus skills
+(`.claude/skills/`).
 Design: `docs/specs/2026-10-28-overclocked-shell-design.md`. Everything is written in English.
 
 ## Layout

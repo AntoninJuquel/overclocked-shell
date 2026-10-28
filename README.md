@@ -15,10 +15,8 @@ Prerequisites: Git, [uv](https://docs.astral.sh/uv/), Claude Code.
 3. Copy `.env.example` to `.env` and fill in the API key, client id and client secret.
 4. Sign in once: `uv run shell auth login` (your browser warns about the localhost certificate: it was just made on
    your machine, continue). `uv run shell auth status` checks it.
-5. Register the tools for all your Claude Code projects:
-   ```bash
-   claude mcp add overclocked-shell --scope user -- uv run --directory /absolute/path/to/overclocked-shell shell-mcp
-   ```
+5. Open Claude Code in this folder and approve the `overclocked-shell` server when asked. It is declared in
+   `.mcp.json` (no secrets: the server reads `.env` itself), so Shell's tools are only loaded in this project.
 
 Your data (`profile/`: tokens, builds, TODO) and downloaded data (`cache/`) stay local and are never committed.
 

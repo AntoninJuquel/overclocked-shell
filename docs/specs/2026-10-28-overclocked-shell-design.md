@@ -113,8 +113,9 @@ overclocked-shell/
 - **Single cutover.** dim-agent owns the live data (builds, `todo/` files) until Shell reaches parity; Shell
   develops against a copy in its `profile/`; the last parity story re-imports the latest dim-agent data and the
   player switches. No sync between the two in the meantime.
-- **MCP registration at user scope** (as destiny-zen is today), so Bungie tools stay available in other projects;
-  the server resolves `.env`, `profile/` and `cache/` from its own install folder, not the launch folder.
+- **MCP registration at project scope** (player's decision, 2026-10-28): a committed `.mcp.json` with no secrets, so
+  Shell's tools load only when Claude Code is opened in the repo, next to its skills. The server still resolves
+  `.env`, `profile/` and `cache/` from its install folder, not the launch folder.
 - **Writes:** asking for a triage is the go-ahead for its lock / unlock batches (reversible, as today); equip,
   sockets / perks, transfers and postmaster keep a dry-run preview the player validates.
 - **No backup of `profile/`** beyond the player's own: gitignored means not versioned, and dim-agent's git history
