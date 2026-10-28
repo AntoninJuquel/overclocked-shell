@@ -40,7 +40,8 @@ warnings, snapshot."""
         armor, taken = snapshot("armor")
         weapons, _ = snapshot("weapons")
         loadout, warnings = share.loadout(s, armor, weapons,
-                                          ctx.manifest.table("DestinyInventoryItemDefinition", keep=False))
+                                          ctx.manifest.table("DestinyInventoryItemDefinition", keep=False),
+                                          ctx.manifest.table("DestinySocketTypeDefinition", keep=False))
         url, more = dim_link.url(loadout)
         return {"url": url, "length": len(url), "items": len(loadout["equipped"]),
                 "mods": len(loadout["parameters"]["mods"]), "warnings": warnings + more, "snapshot": taken}

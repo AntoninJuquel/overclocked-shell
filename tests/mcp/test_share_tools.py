@@ -9,13 +9,12 @@ from shell.context import Context
 from shell.core import paths
 from shell.mcp.server import build_server
 from tests.engines.builds.test_sheet import SHEET
-from tests.engines.test_share import ARMOR, DEFS, WEAPONS
+from tests.engines.test_share import ARMOR, DEFS, SOCKET_TYPES, WEAPONS
 
 
 class FakeManifest:
     def table(self, name, keep=True):
-        assert name == "DestinyInventoryItemDefinition"
-        return DEFS
+        return {"DestinyInventoryItemDefinition": DEFS, "DestinySocketTypeDefinition": SOCKET_TYPES}[name]
 
 
 @pytest.fixture

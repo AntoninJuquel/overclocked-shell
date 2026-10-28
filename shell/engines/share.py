@@ -45,41 +45,50 @@ def _mod_index(defs):
     return {n: h for n, (_, h) in best.items()}
 
 
-def _subclass(s, defs, unknown):
-    """{hash, socketOverrides} of the sheet's subclass item, or None when the manifest has no such item."""
+def _subclass(s, defs, socket_types, unknown, warnings):
+    """{hash, socketOverrides} of the sheet's subclass item, or None when the manifest has no such item.
+    A socket's categories come from its socket type's whitelist (a Void grenade socket has no initial plug,
+    Stasis aspect sockets start on a shared empty plug), else from its initial plug."""
     cls, sub = s["class"], s["subclass"]
     name = SUBCLASS_ITEMS[cls][sub["element"]]
     item = next(((h, d) for h, d in defs.items() if d.get("itemType") == SUBCLASS_ITEM_TYPE
                  and d.get("classType") == CLASS_TYPES[cls] and _name(d) == name), None)
     if item is None:
         unknown.append(f"subclass {name}")
+        warnings.append(f"subclass: {name} not found: in the notes")
         return None
     h, d = item
-    sockets = {}  # category -> [socket index]
-    for i, entry in enumerate((d.get("sockets") or {}).get("socketEntries", [])):
-        cat = _category(defs.get(str(entry.get("singleInitialItemHash"))) or {})
-        if cat:
-            sockets.setdefault(cat, []).append(i)
-    plugs = {(_category(p), _name(p)): int(ph) for ph, p in defs.items() if _category(p) in sockets}
+    socket_cats = []
+    for entry in (d.get("sockets") or {}).get("socketEntries", []):
+        whitelist = (socket_types.get(str(entry.get("socketTypeHash"))) or {}).get("plugWhitelist") or []
+        cats = [w["categoryIdentifier"] for w in whitelist if w.get("categoryIdentifier")]
+        socket_cats.append(cats or [_category(defs.get(str(entry.get("singleInitialItemHash"))) or {})])
+    wanted_cats = {c for cats in socket_cats for c in cats if c}
+    plugs = {}  # name -> {category: hash}
+    for ph, p in defs.items():
+        if _category(p) in wanted_cats:
+            plugs.setdefault(_name(p), {})[_category(p)] = int(ph)
     wanted = {"super": [sub["super"]] if sub.get("super") else [],
               **{k: [v] for k, v in (sub.get("abilities") or {}).items()},
               "aspects": sub.get("aspects", []), "fragments": sub.get("fragments", [])}
     overrides = {}
     for kind, names in wanted.items():
-        cats = [c for c in sockets if c.rsplit(".", 1)[-1] in SOCKET_KINDS.get(kind, ())]
-        for index, n in zip(sockets[cats[0]] if cats else [], names):  # first sockets first: the active ones
-            if (cats[0], n) in plugs:
-                overrides[str(index)] = plugs[(cats[0], n)]
-            else:
+        suffixes = SOCKET_KINDS.get(kind, ())
+        indexes = [i for i, cats in enumerate(socket_cats) if any(c.rsplit(".", 1)[-1] in suffixes for c in cats)]
+        for k, n in enumerate(names):  # first sockets first: the active ones
+            found = next((plugs[n][c] for c in socket_cats[indexes[k]] if c in plugs.get(n, {})), None)                 if k < len(indexes) else None
+            if found is None:
                 unknown.append(n)
-        if not cats:
-            unknown += names
+                warnings.append(f"subclass: {n} not found: in the notes")
+            else:
+                overrides[str(indexes[k])] = found
     return {"hash": int(h), "socketOverrides": overrides}
 
 
 def _notes(s, unknown):
     intent, res = s["intent"], s.get("resolved") or {}
-    lines = [s.get("concept") or ""]
+    lines = ["Not in DIM slots: " + ", ".join(unknown)] if unknown else []  # first: the cap never cuts it
+    lines.append(s.get("concept") or "")
     lines += [f"{w['slot']}: {w['name']}" + (f" ({', '.join(w['perks'])})" if w.get("perks") else "")
               for w in res.get("weapons") or []]
     if res.get("stats"):
@@ -89,14 +98,13 @@ def _notes(s, unknown):
         lines.append(f"Artifact: {art['name']} — {', '.join(art.get('perks', []))}")
     if intent.get("sets"):
         lines.append("Sets: " + ", ".join(f"{e['pieces']} × {e['set']}" for e in intent["sets"]))
-    if unknown:
-        lines.append("Not in DIM slots: " + ", ".join(unknown))
     text = "\n".join(x for x in lines if x)
     return text if len(text) <= MAX_NOTES else text[:MAX_NOTES - 1] + "…"
 
 
-def loadout(s, armor_items, weapon_items, defs) -> tuple[dict, list[str]]:
-    """(DIM Loadout, warnings). `defs`: DestinyInventoryItemDefinition by hash string."""
+def loadout(s, armor_items, weapon_items, defs, socket_types) -> tuple[dict, list[str]]:
+    """(DIM Loadout, warnings). `defs`: DestinyInventoryItemDefinition, `socket_types`: DestinySocketTypeDefinition,
+    both by hash string."""
     res, intent = s.get("resolved") or {}, s["intent"]
     known = {i["itemId"]: i for i in [*armor_items, *weapon_items]}
     warnings, unknown, equipped = [], [], []
@@ -109,7 +117,7 @@ def loadout(s, armor_items, weapon_items, defs) -> tuple[dict, list[str]]:
             warnings.append(f"{e['slot']}: {e['name']} ({e['itemId']}) not in the inventory: left out")
         else:
             equipped.append({"id": e["itemId"], "hash": item["itemHash"]})
-    sub = _subclass(s, defs, unknown)
+    sub = _subclass(s, defs, socket_types, unknown, warnings)
     if sub:
         equipped.append(sub)
 

@@ -10,8 +10,9 @@ def plug(name, category, coll=1, type_name="Armor Mod"):
 
 DEFS = {
     "100": {"displayProperties": {"name": "Prismatic Warlock"}, "itemType": 16, "classType": 2,
-            "sockets": {"socketEntries": [{"singleInitialItemHash": h} for h in
-                                          (900, 901, 902, 903, 904, 907, 905, 905, 906, 906, 906)]}},
+            "sockets": {"socketEntries": [{"singleInitialItemHash": h, "socketTypeHash": t} for h, t in
+                                          ((900, 1), (0, 2), (902, 1), (903, 1), (904, 1), (907, 1),
+                                           (908, 3), (908, 3), (906, 1), (906, 1), (906, 1))]}},
     "101": {"displayProperties": {"name": "Prismatic Warlock"}, "itemType": 20, "classType": 3},   # not a subclass
     "900": plug("Empty Super Socket", "warlock.prism.supers"),
     "901": plug("Empty Grenade Socket", "warlock.prism.grenades"),
@@ -21,6 +22,7 @@ DEFS = {
     "905": plug("Empty Aspect Socket", "warlock.prism.aspects"),
     "906": plug("Empty Fragment Socket", "shared.prism.fragments"),
     "907": plug("Transcendence", "warlock.prism.transcendence"),
+    "908": plug("Empty Aspect Socket", "warlock.shared.aspects"),     # the real plugs are in the socket whitelist
     "10": plug("Song of Flame", "warlock.solar.supers"),
     "11": plug("Song of Flame", "warlock.prism.supers"),
     "12": plug("Storm Grenade", "warlock.prism.grenades"),
@@ -38,6 +40,12 @@ DEFS = {
     "24": plug("Firepower", "enhancements.v2_arms"),
     "50": {"displayProperties": {"name": "Getaway Artist"}, "itemType": 2, "inventory": {"tierType": 6}},
 }
+# Real manifest: a Void grenade socket has no initial plug, Stasis aspect sockets start on a shared empty plug;
+# the allowed categories come from the socket type's whitelist (2, 3). 1 has no whitelist: the initial plug decides.
+SOCKET_TYPES = {"1": {"plugWhitelist": []},
+                "2": {"plugWhitelist": [{"categoryIdentifier": "warlock.prism.grenades"}]},
+                "3": {"plugWhitelist": [{"categoryIdentifier": "warlock.prism.aspects"},
+                                        {"categoryIdentifier": "warlock.shared.aspects"}]}}
 SHEET = {
     "name": "Getaway Buddy", "class": "Warlock", "concept": "Storm Grenade spam.",
     "subclass": {"element": "Prismatic", "super": "Song of Flame",
@@ -64,7 +72,7 @@ WEAPONS = [{"itemId": "w1", "itemHash": 2001, "name": "DECATUR 02"}]
 
 
 def test_loadout_from_resolved_sheet():
-    lo, warnings = share.loadout(SHEET, ARMOR, WEAPONS, DEFS)
+    lo, warnings = share.loadout(SHEET, ARMOR, WEAPONS, DEFS, SOCKET_TYPES)
     assert lo["name"] == "Getaway Buddy" and lo["classType"] == 2 and lo["unequipped"] == [] and lo["id"]
     assert lo["equipped"][:3] == [{"id": "a1", "hash": 1001}, {"id": "a2", "hash": 50}, {"id": "w1", "hash": 2001}]
     assert lo["equipped"][3] == {"hash": 100, "socketOverrides": {
@@ -84,7 +92,7 @@ def test_loadout_from_resolved_sheet():
 def test_loadout_without_resolved_uses_intent():
     s = copy.deepcopy(SHEET)
     del s["resolved"]
-    lo, warnings = share.loadout(s, ARMOR, WEAPONS, DEFS)
+    lo, warnings = share.loadout(s, ARMOR, WEAPONS, DEFS, SOCKET_TYPES)
     assert [e.get("id") for e in lo["equipped"]] == [None]                 # subclass only
     assert lo["parameters"]["mods"] == [20, 24] and lo["parameters"]["exoticArmorHash"] == 50
     assert warnings == ["no resolved armor or weapons: the link carries the subclass and mods only"]
@@ -93,5 +101,14 @@ def test_loadout_without_resolved_uses_intent():
 def test_notes_are_capped():
     s = copy.deepcopy(SHEET)
     s["concept"] = "x" * 3000
-    lo, _ = share.loadout(s, ARMOR, WEAPONS, DEFS)
+    lo, _ = share.loadout(s, ARMOR, WEAPONS, DEFS, SOCKET_TYPES)
     assert len(lo["notes"]) == share.MAX_NOTES and lo["notes"].endswith("…")
+
+
+def test_unknown_subclass_plug_warns_and_notes_keep_it_first():
+    s = copy.deepcopy(SHEET)
+    s["subclass"]["aspects"] = ["Feed the Void", "Nope Aspect"]
+    s["concept"] = "x" * 3000
+    lo, warnings = share.loadout(s, ARMOR, WEAPONS, DEFS, SOCKET_TYPES)
+    assert "subclass: Nope Aspect not found: in the notes" in warnings
+    assert "Not in DIM slots: Nope Aspect, Mystery Mod" in lo["notes"]
