@@ -187,8 +187,8 @@ NO_ROTATION = 'no Distortion rotation cached: refresh_references(source="distort
 def _add_distortions(doc, now):
     """Each entry with a destination among its sources gets `distorted`: its next Distorted window."""
     rot = distortions_source.load()
-    if rot is None:
-        if any(s["type"] == "world" for e in doc["entries"] for s in e["sources"]):
+    if rot is None:   # destinations are only known from the rotation itself: warn whenever there is a TODO
+        if doc["entries"]:
             doc["warnings"].append(NO_ROTATION)
         return
     for e in doc["entries"]:

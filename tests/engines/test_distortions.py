@@ -43,7 +43,9 @@ def test_schedule_and_todo_line():
     rows = d.schedule(ROT, NOW, 3, CET)
     assert [r.split(" ")[-1] for r in rows] == ["Europa", "Nessus", "Cosmodrome"] and rows[0].startswith("now until")
     line = d.todo_line(ROT, ["Europa", "Vault of Glass", "Europa"], NOW, CET)
-    assert line == f"Europa {d.fmt(494803, NOW, CET)}, then every 7 h (UTC+01:00)"
+    start = d._local(494803, CET)
+    # a saved TODO is read later: absolute weekday and times, never "now" or "today"
+    assert line == f"Europa {start:%a %H:%M}–{start + timedelta(hours=1):%H:%M}, then every 7 h (UTC+01:00)"
     assert d.todo_line(ROT, ["Vault of Glass"], NOW, CET) is None
 
 

@@ -201,7 +201,7 @@ def test_run_writes_files(tmp_path):
     doc = plan.run(todo_dir, week_dir, INDEX, {}, NOW)
     assert json.loads((todo_dir / "2026-10-07.json").read_text(encoding="utf-8")) == doc
     assert (todo_dir / "2026-10-07.md").read_text(encoding="utf-8") == plan.render_md(doc)
-    assert doc["warnings"] == []
+    assert doc["warnings"] == [plan.NO_ROTATION]          # no rotation cached in this test
 
 
 def test_run_with_build_writes_separate_files(tmp_path):
@@ -240,7 +240,7 @@ def write_rotation(tmp_path):
 def test_run_adds_distorted_times(tmp_path, isolated_dirs):
     todo_dir, week_dir = _dirs(tmp_path)
     write_rotation(isolated_dirs)
-    manual = {"catalyst/collective-obligation": [{"type": "world", "name": "Europa"},
+    manual = {"catalyst/collective-obligation": [{"type": "activity", "name": "Europa"},
                                                  {"type": "vendor", "name": "Ada-1"}]}
     doc = plan.run(todo_dir, week_dir, INDEX, manual, NOW)
     by_id = {e["id"]: e for e in doc["entries"]}
@@ -252,6 +252,6 @@ def test_run_adds_distorted_times(tmp_path, isolated_dirs):
 
 def test_run_without_rotation_warns(tmp_path):
     todo_dir, week_dir = _dirs(tmp_path)
-    doc = plan.run(todo_dir, week_dir, INDEX, {"catalyst/collective-obligation": [{"type": "world", "name": "Moon"}]},
+    doc = plan.run(todo_dir, week_dir, INDEX, {"catalyst/collective-obligation": [{"type": "activity", "name": "Moon"}]},
                    NOW)
     assert plan.NO_ROTATION in doc["warnings"] and "Distorted:" not in plan.render_md(doc)

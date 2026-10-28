@@ -52,6 +52,12 @@ def fmt(hour: int, now: datetime, tz=None) -> str:
     return f"{day(start, now.astimezone(tz))} {start:%H:%M}–{end:%H:%M}"
 
 
+def _absolute(hour: int, tz=None) -> str:
+    """"Wed 21:00–22:00": for files read later (the TODO), where "now" or "today" would go stale."""
+    start, end = _local(hour, tz), _local(hour + 1, tz)
+    return f"{start:%a %H:%M}–{end:%H:%M}"
+
+
 def offset(now: datetime, tz=None) -> str:
     z = now.astimezone(tz).strftime("%z")
     return f"UTC{z[:3]}:{z[3:]}"
@@ -63,11 +69,11 @@ def schedule(rot, now: datetime, hours: int, tz=None) -> list[str]:
 
 
 def todo_line(rot, source_names, now: datetime, tz=None) -> str | None:
-    """"Europa today 21:00–22:00, then every 7 h (UTC+01:00)" for the destinations among a need's sources."""
+    """"Europa Wed 21:00–22:00, then every 7 h (UTC+01:00)" for the destinations among a need's sources."""
     found = list(dict.fromkeys(d for d in (match(n, rot) for n in source_names) if d))
     if not found:
         return None
-    parts = [f"{d} {fmt(windows(rot, d, now, 1)[0], now, tz)}" for d in found]
+    parts = [f"{d} {_absolute(windows(rot, d, now, 1)[0], tz)}" for d in found]
     return f"{'; '.join(parts)}, then every {PERIOD} h ({offset(now, tz)})"
 
 
