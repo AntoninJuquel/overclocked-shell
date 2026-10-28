@@ -1,0 +1,137 @@
+{
+  "name": "Example — Warlock Prismatic grenades",
+  "class": "Warlock",
+  "activity": "General endgame",
+  "concept": "Holding the Storm Grenade summons both the Getaway Artist Arc Soul (Amplified) and the Bleak Watcher Stasis turret; their kills trigger Enhanced Devour (Feed the Void), which heals and doubles grenade energy, Shieldcrush and Shock and Awe run while Amplified, and Great Hunt turns every grenade kill into heavy ammo for Song of Ir Yût.",
+  "subclass": {
+    "element": "Prismatic",
+    "super": "Song of Flame",
+    "abilities": {
+      "grenade": "Storm Grenade",
+      "melee": "Arcane Needle",
+      "class": "Phoenix Dive",
+      "jump": "Burst Glide"
+    },
+    "aspects": [
+      "Feed the Void",
+      "Bleak Watcher"
+    ],
+    "fragments": [
+      "Facet of Purpose",
+      "Facet of Courage",
+      "Facet of Protection",
+      "Facet of Dominance"
+    ]
+  },
+  "intent": {
+    "exotic": {
+      "name": "Getaway Artist"
+    },
+    "stats": {
+      "minimums": {
+        "Grenade": 150,
+        "Weapons": 100
+      },
+      "priority": [
+        "Grenade",
+        "Super",
+        "Class",
+        "Melee",
+        "Health"
+      ]
+    },
+    "sets": [
+      {
+        "set": "Great Hunt",
+        "pieces": 4
+      }
+    ],
+    "armor_mods": {
+      "Helmet": [
+        "Stasis Siphon",
+        "Ashes to Assets"
+      ],
+      "Gauntlets": [
+        "Firepower",
+        "Grenade Font",
+        "Bolstering Detonation"
+      ],
+      "Chest": [
+        "Arc Resistance",
+        "Solar Resistance",
+        "Void Resistance"
+      ],
+      "Legs": [
+        "Void Weapon Surge",
+        "Void Weapon Surge",
+        "Recuperation"
+      ],
+      "Class Item": [
+        "Time Dilation",
+        "Time Dilation",
+        "Powerful Attraction"
+      ]
+    },
+    "armor_mods_fill": {
+      "Helmet": [
+        "Radiant Light",
+        "Heavy Ammo Finder",
+        "Stasis Siphon"
+      ],
+      "Gauntlets": [
+        "Firepower",
+        "Bolstering Detonation"
+      ],
+      "Chest": [
+        "Concussive Dampener"
+      ],
+      "Legs": [
+        "Recuperation",
+        "Absolution"
+      ],
+      "Class Item": [
+        "Powerful Attraction",
+        "Bomber"
+      ]
+    },
+    "artifact": {
+      "name": "Hunter's Journal",
+      "perks": [
+        "Sustained Fire",
+        "Energy Diffusion Substrate",
+        "Radiant Orbs",
+        "Targeting Autoloader",
+        "Counter Energy",
+        "Shieldcrush",
+        "Shock and Awe"
+      ]
+    },
+    "weapons": [
+      {
+        "slot": "Kinetic",
+        "role": "add clear, Slow (Overload stun), the artifact auto rifle perks",
+        "element": "Stasis",
+        "type": "Auto Rifle",
+        "ammo": "Primary",
+        "wanted": "DECATUR 02: Full Bore, Accurized Rounds, Physic / Crystalline Corpsebloom / Attrition Orbs + Reciprocity / Master of Arms / Redirection, MW Range"
+      },
+      {
+        "slot": "Energy",
+        "role": "elites and champions, roaming (ammo economy)",
+        "element": "Void",
+        "type": "Auto Rifle",
+        "ammo": "Special",
+        "exotic": true,
+        "wanted": "Choir of One"
+      },
+      {
+        "slot": "Power",
+        "role": "DPS and heavy add clear, Great Hunt heavy ammo",
+        "element": "Arc",
+        "type": "Machine Gun",
+        "ammo": "Heavy",
+        "wanted": "Song of Ir Yût: Demolitionist + Master of Arms (or Mega Kill Clip), Arrowhead Brake, Alloy Magazine, MW Reload"
+      }
+    ]
+  }
+}

@@ -26,3 +26,9 @@ def test_skills_name_existing_tools():
     called = {(s.parent.name, name) for s in SKILLS
               for name in re.findall(r"`([a-z_]+)\(", s.read_text(encoding="utf-8"))}
     assert sorted(c for c in called if c[1] not in tools) == []
+
+
+def test_example_sheet_validates():
+    from shell.engines.builds import sheet
+    examples = sorted((ROOT / "examples" / "builds").glob("*.json"))
+    assert examples and all(sheet.load(e)["name"] for e in examples)

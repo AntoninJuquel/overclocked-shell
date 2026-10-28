@@ -19,6 +19,25 @@ Prerequisites: Git, [uv](https://docs.astral.sh/uv/), Claude Code.
    `.mcp.json` (no secrets: the server reads `.env` itself), so Shell's tools are only loaded in this project.
 
 Your data (`profile/`: tokens, builds, TODO) and downloaded data (`cache/`) stay local and are never committed.
+To start with a sample build and the TODO templates, copy `examples/` into `profile/` (see `examples/README.md`).
+
+## Use
+
+Just talk to Claude in this folder, in English or French, for example:
+
+- "sort my armor" / "sort my weapons" / "export the tags for DIM"
+- "create a build around Getaway Artist", "re-optimize my build", "equip my build"
+- "what should I farm tonight?", "I got the helmet", "ignore Exodus Down"
+- "what does Facet of Courage do?", "what's the best rocket launcher?", "which endpoint equips items?"
+
+Reference data (Destiny Data Compendium, Aegis's sheets, the Bungie API docs, DIM wishlists) is downloaded into
+`cache/` on demand and stays there: it belongs to its authors.
+
+## Switching from dim-agent
+
+1. Import your builds and TODO data (sheets are converted, old TODOs kept in `profile/todo/history/`, statuses
+   merged; nothing is deleted on either side): `uv run shell import dim-agent <path to dim-agent>`
+2. Remove the destiny-zen MCP server you registered at user level: `claude mcp remove destiny-zen -s user`.
 
 ## Development
 
