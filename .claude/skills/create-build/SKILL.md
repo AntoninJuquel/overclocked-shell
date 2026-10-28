@@ -181,7 +181,8 @@ Add to the JSON's `resolved` (after step 7, without touching the rest):
   aspect…): `kind` (`weapon`, `catalyst` or `upgrade`), `target` (item name, in English) and `effects` (what we
   would gain, a list of texts). Armor gaps are computed by the farm needs, don't put them here.
 
-Then `check_build(slug)` (validates and regenerates the `.md`).
+Then `check_build(slug)` (validates and regenerates the `.md`), and `farm_needs` (farm needs of every sheet,
+"To fetch" section).
 
 ## 9. End
 Show the sheet's `.md`, remind the masterworks to do in game, and offer to equip it (`equip-build` skill). This

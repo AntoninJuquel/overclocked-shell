@@ -54,7 +54,7 @@ roles): never change it here without their OK. `resolved` is the last dated resu
    sets in `resolved.sets` (removed without `sets`, the intent applying as is) and regenerates the `.md`. Keep
    one "Gap: …" reason per concession in `resolved.rationale`. Update `resolved.gaps` (non-armor gaps: `kind`
    `weapon` / `catalyst` / `upgrade`, `target`, `effects`) if a missing weapon or catalyst is now owned, or a new
-   one is missing. Don't rerun the optimizer only to regenerate the `.md`: after a manual JSON edit,
+   one is missing. Then `farm_needs` to recompute the farm needs. Don't rerun the optimizer only to regenerate the `.md`: after a manual JSON edit,
    `check_build(slug)` validates and regenerates it.
 7. Nothing is equipped here: offer the `equip-build` skill.
 

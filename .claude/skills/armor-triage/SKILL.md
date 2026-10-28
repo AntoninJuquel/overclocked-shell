@@ -21,6 +21,7 @@ one to keep).
 4. **Apply**: `apply_triage("armor")` — asking for a triage is the go-ahead, no dry run. Never dismantle: the
    player cleans up with the `is:unlocked` filter.
 5. **Summarize**: kept / dropped counts, main reasons, `skipped` (postmaster) and any `failed` ids.
+6. **Farm needs**: `farm_needs` (kept pieces may settle needs of the build sheets; see the `todo` skill).
 
 ## Rules (to explain decisions)
 
