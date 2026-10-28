@@ -18,6 +18,8 @@ def register(mcp: MCPServer, ctx: Context) -> None:
 - wishlists: the default DIM weapon wishlist (cache/wishlists/)
 - distortions: the hourly Distortion rotation, community-observed (cache/distortions/rotation.json); read it
   with the distortions tool
+- guides: raid guides chosen by the player, as Markdown with their images (cache/guides/<raid>/<guide>.md,
+  index.md); `tabs` = raid slugs (e.g. ["deep-stone-crypt"]). Read them with the raid-companion skill
 Without force, cached downloads are reused and only rendering runs; force re-downloads. tabs limits the
 Compendium / Aegis to those tab names. Read or grep the Markdown afterwards to answer questions."""
         found = sources()
