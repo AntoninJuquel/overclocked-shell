@@ -226,3 +226,32 @@ def test_render_md_labels_aegis_needs():
     md = plan.render_md(doc)
     assert "For: Aegis Shopping List (Aegis role: exotic sustained heavy (priority high))" in md
     assert "Where: Kiosk" in md
+
+
+def write_rotation(tmp_path):
+    from tests.sources.test_distortions import ORDER
+    folder = tmp_path / "cache" / "distortions"
+    folder.mkdir(parents=True)
+    (folder / "rotation.json").write_text(json.dumps(
+        {"order": ORDER, "anchor_hour": 494803, "anchor_index": 5, "source": "u", "fetched": "2026-10-07"}),
+        encoding="utf-8")
+
+
+def test_run_adds_distorted_times(tmp_path, isolated_dirs):
+    todo_dir, week_dir = _dirs(tmp_path)
+    write_rotation(isolated_dirs)
+    manual = {"catalyst/collective-obligation": [{"type": "world", "name": "Europa"},
+                                                 {"type": "vendor", "name": "Ada-1"}]}
+    doc = plan.run(todo_dir, week_dir, INDEX, manual, NOW)
+    by_id = {e["id"]: e for e in doc["entries"]}
+    line = by_id["catalyst/collective-obligation"]["distorted"]
+    assert line.startswith("Europa ") and line.count("Europa") == 1 and ", then every 7 h (UTC" in line
+    assert "distorted" not in by_id["masterwork/9"] and plan.NO_ROTATION not in doc["warnings"]
+    assert f"   Distorted: {line}\n" in plan.render_md(doc)
+
+
+def test_run_without_rotation_warns(tmp_path):
+    todo_dir, week_dir = _dirs(tmp_path)
+    doc = plan.run(todo_dir, week_dir, INDEX, {"catalyst/collective-obligation": [{"type": "world", "name": "Moon"}]},
+                   NOW)
+    assert plan.NO_ROTATION in doc["warnings"] and "Distorted:" not in plan.render_md(doc)

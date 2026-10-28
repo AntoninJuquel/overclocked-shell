@@ -8,7 +8,9 @@ import json
 import re
 from pathlib import Path
 
+from shell.engines import distortions
 from shell.engines.todo import shopping, sources, state as state_mod, week
+from shell.sources import distortions as distortions_source
 
 SECTIONS = ("This week", "When you can", "Later")
 SECTION_BY_AVAILABILITY = {sources.AVAILABILITY["boosted"]: SECTIONS[0], sources.AVAILABILITY["known"]: SECTIONS[1],
@@ -154,6 +156,8 @@ def render_md(doc):
                 lines.append("   Where: " + "; ".join(format_source(s) for s in display_sources(e["sources"])))
             else:
                 lines.append(f"   Where: unknown source, add it to profile/todo/sources.json (key \"{e['id']}\")")
+            if e.get("distorted"):
+                lines.append(f"   Distorted: {e['distorted']}")
             if e.get("note"):
                 lines.append(f"   Note: {e['note']}")
     h = doc["hidden"]
@@ -177,6 +181,22 @@ def file_stem(doc):
     return doc["date"] + (f"-{doc['build']}" if doc.get("build") else "")
 
 
+NO_ROTATION = 'no Distortion rotation cached: refresh_references(source="distortions") to see farming times'
+
+
+def _add_distortions(doc, now):
+    """Each entry with a destination among its sources gets `distorted`: its next Distorted window."""
+    rot = distortions_source.load()
+    if rot is None:
+        if any(s["type"] == "world" for e in doc["entries"] for s in e["sources"]):
+            doc["warnings"].append(NO_ROTATION)
+        return
+    for e in doc["entries"]:
+        line = distortions.todo_line(rot, [s["name"] for s in e["sources"]], now)
+        if line:
+            e["distorted"] = line
+
+
 def run(todo_dir, week_dir, index, manual, now, build=None):
     """Computes today's TODO and writes it to <todo_dir>/<date>.json and .md (<date>-<build>.* with `build`, so the
     full TODO is not overwritten)."""
@@ -189,6 +209,7 @@ def run(todo_dir, week_dir, index, manual, now, build=None):
     doc = build_plan(needs_doc, state_mod.load(todo_dir / "state.json"), ctx, index, manual,
                      now.date().isoformat(), build)
     doc["warnings"] = warnings + list(needs_doc.get("warnings", []))
+    _add_distortions(doc, now)
     state_mod.write_json(todo_dir / f"{file_stem(doc)}.json", doc)
     (todo_dir / f"{file_stem(doc)}.md").write_text(render_md(doc), encoding="utf-8")
     return doc
