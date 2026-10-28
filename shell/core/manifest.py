@@ -18,14 +18,15 @@ class Manifest:
     def version(self) -> str:
         return self._load_index()["version"]
 
-    def table(self, name: str) -> dict[str, dict]:
-        if name not in self._tables:
-            file = self.root / self.version() / f"{name}.json"
-            if file.exists():
-                self._tables[name] = json.loads(file.read_text(encoding="utf-8"))
-            else:
-                self._tables[name] = self._download(name, file)
-        return self._tables[name]
+    def table(self, name: str, keep: bool = True) -> dict[str, dict]:
+        """`keep=False` for huge tables read once (e.g. to build an index): not memoized."""
+        if name in self._tables:
+            return self._tables[name]
+        file = self.root / self.version() / f"{name}.json"
+        table = json.loads(file.read_text(encoding="utf-8")) if file.exists() else self._download(name, file)
+        if keep:
+            self._tables[name] = table
+        return table
 
     def _load_index(self) -> dict:
         if self._index is None:

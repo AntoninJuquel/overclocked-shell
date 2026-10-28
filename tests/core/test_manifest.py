@@ -60,3 +60,11 @@ def test_invalid_table_not_cached(tmp_path):
     with pytest.raises(BungieApiError):
         Manifest(server("v1", [], table_responses=bad), tmp_path).table("DestinyClassDefinition")
     assert not list((tmp_path / "manifest").rglob("*.json"))
+
+
+def test_table_keep_false_not_memoized(tmp_path):
+    m = Manifest(server("v1", []), tmp_path)
+    assert m.table("DestinyClassDefinition", keep=False)
+    assert m._tables == {}
+    m.table("DestinyClassDefinition")
+    assert "DestinyClassDefinition" in m._tables
