@@ -38,6 +38,9 @@ def register(mcp: MCPServer, ctx: Context) -> None:
         plans, notes = [], []
         for change in changes:
             item_id = clean_ids([change["itemId"]])[0]
+            if not item_id.isdigit():  # ids go into the request path
+                notes.append(f"{item_id}: not an item id")
+                continue
             item = ctx.client.get(f"{base}/Item/{item_id}/", params={"components": "305,307,310"}, auth=True)
             item_hash = item.get("item", {}).get("data", {}).get("itemHash")
             if not item_hash:

@@ -36,7 +36,7 @@ def build_defs(items: dict, stats: dict, socket_categories: dict) -> dict:
         elif "plug" in d:
             plugs[h] = {"n": name, "t": type_name or "", "p": d["plug"].get("plugCategoryIdentifier") or ""}
         else:
-            names[h] = name  # engrams, packages…: only needed to name postmaster entries
+            names[h] = name  # engrams, packagesâ€¦: only needed to name postmaster entries
     display_names = lambda table: {h: d["displayProperties"]["name"] for h, d in table.items()  # noqa: E731
                            if d.get("displayProperties", {}).get("name")}
     return {"weapons": weapons, "gear": gear, "plugs": plugs, "misc": misc, "names": names,

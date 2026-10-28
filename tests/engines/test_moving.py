@@ -9,7 +9,7 @@ BUCKET = {1: 10, 2: 10, 3: 20}
 
 
 def loc(item_id, h, where, cid=None, quantity=1):
-    return {"itemId": item_id, "itemHash": h, "bucketHash": 0, "where": where, "characterId": cid,
+    return {"itemId": item_id, "itemHash": h, "bucketHash": BUCKET[h], "where": where, "characterId": cid,
             "quantity": quantity, "locked": False, "name": f"item-{item_id}"}
 
 
@@ -99,3 +99,33 @@ def test_pull_dry_run():
     actions = FakeActions()
     result = pull_postmaster(actions, locations(), "w", ["p1"], False, True)
     assert result["items"] == [{"itemId": "p1", "name": "item-p1", "result": "would pull"}] and actions.posts == []
+
+
+def test_partial_move_says_where_the_item_is():
+    # leg 1 (hunter -> vault) works, leg 2 (vault -> warlock) fails: the item is now in the vault
+    result, _ = run(["h1"], "warlock", errors=[None, 1623])
+    assert result["items"][0]["result"] == "failed: item not found (Bungie error 1623); it is now in the vault"
+
+
+def test_room_made_then_retry_failed_still_reported():
+    result, _ = run(["v1"], "warlock", errors=[1642, None, 1642])
+    entry = result["items"][0]
+    assert entry["result"].startswith("failed: no room in destination")
+    assert entry["notes"] == ["made room: sent item-w1 to the vault"]
+
+
+def test_victim_chosen_by_real_bucket_and_never_bucket_zero():
+    locs = locations()
+    locs["w1"]["bucketHash"] = 99  # w1's real bucket differs from what the index says
+    actions = FakeActions([1642])
+    result = transfer(actions, locs, CLASS_OF, ["v1"], "warlock", False, lambda h: 99 if h == 1 else 0)
+    assert [b["itemId"] for _, b in actions.posts] == ["v1", "w1", "v1"] and result["moved"] == 1
+    actions = FakeActions([1642])
+    result = transfer(actions, locations(), CLASS_OF, ["v1"], "warlock", False, lambda h: 0)
+    assert len(actions.posts) == 1 and result["moved"] == 0
+
+
+def test_pull_reports_ids_not_in_postmaster():
+    result = pull_postmaster(FakeActions(), locations(), "w", ["p1", "pm:w:3:9", "v1"], False, True)
+    assert [(i["itemId"], i["result"]) for i in result["items"]] == [
+        ("p1", "would pull"), ("pm:w:3:9", "not found"), ("v1", "not found")]

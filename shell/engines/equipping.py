@@ -5,7 +5,7 @@ from shell.core.bungie import BungieApiError
 from shell.engines.actions import ERROR_NAMES, describe
 from shell.engines.inventory import CLASS_NAME
 from shell.engines.locking import clean_ids
-from shell.engines.moving import move
+from shell.engines.moving import failure, move
 
 EQUIP = "/Destiny2/Actions/Items/EquipItems/"
 EXOTIC_CLASH = 1641
@@ -40,14 +40,15 @@ def equip(actions, locations: dict, class_of: dict, character_id: str, item_ids:
                 entry["result"] = f"would move {route}"
                 to_equip.append(item_id)
                 continue
+            notes, started = [], loc["where"]
             try:
-                notes = move(actions, locations, item_id, character_id, set(ids), bucket_of)
+                move(actions, locations, item_id, character_id, set(ids), bucket_of, notes)
                 entry["result"] = f"moved {route}"
-                if notes:
-                    entry["notes"] = notes
                 to_equip.append(item_id)
             except BungieApiError as e:
-                entry["result"] = f"move failed: {describe(e)}"
+                entry["result"] = "move " + failure(e, started, loc)
+            if notes:
+                entry["notes"] = notes
 
     names = {i: locations[i]["name"] for i in to_equip}
     if dry_run or not to_equip:

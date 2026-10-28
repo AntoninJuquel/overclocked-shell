@@ -1,4 +1,6 @@
 """Where every item is right now (vault, character inventory, postmaster, equipped), for write actions."""
+from typing import Callable
+
 from shell.engines.inventory import POSTMASTER_BUCKET
 from shell.engines.loadout import item_name
 
@@ -43,7 +45,7 @@ def load_locations(client, defs: dict) -> tuple[dict, dict[str, dict], dict[str,
     return (membership, *read_locations(get_profile(client, membership, LOCATION_COMPONENTS), defs))
 
 
-def bucket_of(defs: dict) -> callable:
+def bucket_of(defs: dict) -> Callable[[int], int]:
     def bucket(h: int) -> int:
         weapon = defs["weapons"].get(str(h))
         return weapon["b"] if weapon else (defs["gear"].get(str(h)) or [0, 0, 0, 0])[3]
