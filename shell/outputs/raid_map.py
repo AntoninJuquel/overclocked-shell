@@ -28,8 +28,12 @@ def svg(enc: dict, floor_id: str, names: dict, highlight: set[str]) -> str:
             continue
         x, y = _x(s["pos"][0]), _y(s["pos"][1])
         cls = "spot hl" if s["id"] in highlight else "spot"
+        # labels point away from the centre so neighbours across a divider don't collide; near an edge, inward
+        left = 20 < s["pos"][0] < 50 or s["pos"][0] > 80
+        tx, anchor = (x - 9, "end") if left else (x + 9, "start")
         out.append(f'<g class="{cls}"><circle cx="{x}" cy="{y}" r="6"/>'
-                   f'<text x="{x + 9}" y="{y + 4}">{escape(names.get(s["id"], s["name"]))}</text></g>')
+                   f'<text x="{tx}" y="{y + 4}" text-anchor="{anchor}">'
+                   f'{escape(names.get(s["id"], s["name"]))}</text></g>')
     out.append(f'<text class="note" x="{W - 4}" y="{H - 6}" text-anchor="end">'
                f'Schematic — positions from the guides</text></g></svg>')
     return "".join(out)

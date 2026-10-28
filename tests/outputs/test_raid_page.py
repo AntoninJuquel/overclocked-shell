@@ -1,5 +1,7 @@
 import copy
 
+import pytest
+
 from shell.engines import raids
 from shell.outputs import raid_map, raid_page
 from tests.engines.test_raids import ENC
@@ -44,3 +46,10 @@ def test_write(tmp_path):
     path = tmp_path / "raids" / "live.html"
     raid_page.write(path, "<html></html>")
     assert path.read_text(encoding="utf-8") == "<html></html>"
+
+
+@pytest.mark.parametrize("x,anchor", [(5, "start"), (42, "end"), (55, "start"), (95, "end")])
+def test_svg_labels_point_away_from_the_centre_and_stay_inside(x, anchor):
+    enc = copy.deepcopy(ENC)
+    enc["spots"][0]["pos"] = [x, 50]
+    assert f'text-anchor="{anchor}"' in raid_map.svg(enc, "upper", NAMES, set()).split("Term A")[0].rsplit("<g", 1)[1]
