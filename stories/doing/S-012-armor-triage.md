@@ -1,6 +1,6 @@
 # S-012 — Port armor triage
 
-**Epic:** E4 Parity port
+**Epic:** E4 Parity port · **Plan:** docs/plans/2026-10-28-references-triage.md
 
 ## Why
 Keep the best copy per stat distribution and set, drop all legacy.
