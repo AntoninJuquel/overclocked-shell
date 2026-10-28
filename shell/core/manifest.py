@@ -1,0 +1,44 @@
+"""Manifest definition tables, downloaded once per manifest version into cache/manifest/<version>/."""
+import json
+import os
+import shutil
+from pathlib import Path
+
+from shell.core import paths
+from shell.core.bungie import BASE, BungieClient
+
+
+class Manifest:
+    def __init__(self, client: BungieClient, cache_dir: Path | None = None):
+        self.client = client
+        self.root = (cache_dir or paths.cache_dir()) / "manifest"
+        self._index: dict | None = None
+        self._tables: dict[str, dict] = {}
+
+    def version(self) -> str:
+        return self._load_index()["version"]
+
+    def table(self, name: str) -> dict[str, dict]:
+        if name not in self._tables:
+            file = self.root / self.version() / f"{name}.json"
+            if not file.exists():
+                self._download(name, file)
+            self._tables[name] = json.loads(file.read_text(encoding="utf-8"))
+        return self._tables[name]
+
+    def _load_index(self) -> dict:
+        if self._index is None:
+            self._index = self.client.get("/Destiny2/Manifest/")
+        return self._index
+
+    def _download(self, name: str, file: Path) -> None:
+        url = BASE + self._load_index()["jsonWorldComponentContentPaths"]["en"][name]
+        res = self.client.http.get(url)
+        res.raise_for_status()
+        file.parent.mkdir(parents=True, exist_ok=True)
+        tmp = file.with_suffix(".tmp")
+        tmp.write_bytes(res.content)
+        os.replace(tmp, file)
+        for old in self.root.iterdir():
+            if old.is_dir() and old != file.parent:
+                shutil.rmtree(old, ignore_errors=True)
