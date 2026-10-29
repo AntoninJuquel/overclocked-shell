@@ -18,6 +18,7 @@ SLOTS = {"head": "Helmet", "arms": "Gauntlets", "chest": "Chest", "legs": "Legs"
 CLASSES = {0: "Titan", 1: "Hunter", 2: "Warlock"}
 EXOTIC_TIER = 6
 PACKAGE = 25  # itemType of an Eververse pack
+ARTICLED = {"shader": "a shader", "ornament": "an ornament", "armor": "an armor piece"}
 FOR_EXOTIC = re.compile(r"appearance of (?:the |your )?([^.\n]+)", re.I)
 
 
@@ -73,6 +74,9 @@ def resolve(name: str, kind: str, cls: str, index: dict, slot: str | None = None
     look's row, an ornament of another slot is refused."""
     kinds = ("ornament", "armor") if kind == "ornament" else (kind,)
     found = [e for e in index.get(norm(name), []) if e["kind"] in kinds]
+    other = index.get(norm(name))
+    if not found and other:
+        return None, f"is {ARTICLED[other[0]['kind']]}"
     if not found:
         close = difflib.get_close_matches(norm(name), list(index), n=3, cutoff=0.85)
         names = [index[c][0]["name"] for c in close]
@@ -89,9 +93,10 @@ def resolve(name: str, kind: str, cls: str, index: dict, slot: str | None = None
     return sorted(mine, key=lambda e: (kinds.index(e["kind"]), e["collectible"] is None))[0], None
 
 
-def owned(entry: dict, state: dict, inventory_hashes: set) -> bool | None:
-    """True / False from Collections (or the inventory); None when the profile doesn't say."""
-    if entry["hash"] in inventory_hashes:
+def owned(entry: dict, state: dict, inventory: set) -> bool | None:
+    """True / False from Collections (or the inventory: item hashes, and normalized armor names since a copy of an
+    armor piece can have another hash); None when the profile doesn't say."""
+    if entry["hash"] in inventory or (entry["kind"] == "armor" and norm(entry["name"]) in inventory):
         return True
     if entry.get("collectible") is None or entry["collectible"] not in state:
         return None
@@ -136,7 +141,7 @@ def eververse(entry: dict, raw_context: dict | None, now: datetime, items: dict)
     return "not on sale this week"
 
 
-def check(look, cls, index, state, inventory_hashes, raw_context, now, items) -> dict:
+def check(look, cls, index, state, inventory, raw_context, now, items) -> dict:
     """{rows: one per slot and kind, summary}."""
     rows = []
     for slot in look:
@@ -149,7 +154,7 @@ def check(look, cls, index, state, inventory_hashes, raw_context, now, items) ->
             if problem:
                 row["problem"] = problem
             else:
-                row.update(name=entry["name"], owned=owned(entry, state, inventory_hashes),
+                row.update(name=entry["name"], owned=owned(entry, state, inventory),
                            source=entry.get("source"), eververse=eververse(entry, raw_context, now, items))
                 if entry.get("exotic_for"):
                     row["exotic_for"] = entry["exotic_for"]
