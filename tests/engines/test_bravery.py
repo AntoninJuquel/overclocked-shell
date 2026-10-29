@@ -106,7 +106,8 @@ def test_slot_mods_base_copy():
     defs = {"1": mod("Ashes to Assets", "enhancements.v2_head", 3, 9), "2": mod("Ashes to Assets",
                                                                                   "enhancements.v2_head", 1, None),
             "3": mod("Grenade Mod", "enhancements.v2_general", 3, 9), "4": mod("Recuperation",
-                                                                               "enhancements.v2_legs", 1, 7)}
+                                                                               "enhancements.v2_legs", 1, 7),
+            "5": mod("Artifact Only", "enhancements.v2_head", 1, None)}      # artifact mod: no collectible
     assert bravery.slot_mods(defs) == {"Helmet": {"Ashes to Assets": 3}, "Legs": {"Recuperation": 1}}
 
 
@@ -115,3 +116,31 @@ def test_mods_budget_keeps_room_for_the_installed_stat_mod():
     for seed in range(30):
         mods = bravery.roll_mods(entries, [a("h", "Helmet", energy="5/4")], MODS, random.Random(seed), {"h": 3})
         assert sum(MODS["Helmet"][m] for m in mods["Helmet"]) <= 1
+
+
+def test_fewer_catalog_fragments_than_slots():
+    idx = make_idx()
+    idx["Arc"]["fragments"] = {"Spark 0", "Spark 1"}
+    sub = bravery.roll_subclass("Warlock", ["Arc"], idx, random.Random(3))
+    assert sorted(sub["fragments"]) == ["Spark 0", "Spark 1"]
+
+
+def test_slot_without_legendary_takes_the_exotic():
+    armor = [a(f"{s}-l", s) for s in SLOTS if s != "Legs"] + [a("helm-x", "Helmet", rarity="Exotic"),
+                                                               a("legs-x", "Legs", rarity="Exotic")]
+    for seed in range(30):
+        rolled = bravery.roll_armor(armor, "Warlock", random.Random(seed))
+        assert [x["slot"] for x in rolled] == list(SLOTS)
+        assert [x["itemId"] for x in rolled if x["itemId"].endswith("-x")] == ["legs-x"]
+
+
+def test_two_slots_without_legendary_raise():
+    armor = [a(f"{s}-l", s) for s in SLOTS if s not in ("Legs", "Helmet")] + [a("legs-x", "Legs", rarity="Exotic")]
+    with pytest.raises(ValueError, match="no legendary Helmet, Legs for Warlock"):
+        bravery.roll_armor(armor, "Warlock", random.Random(0))
+
+
+def test_slot_without_legendary_nor_exotic_raises():
+    armor = [a(f"{s}-l", s) for s in SLOTS if s != "Legs"] + [a("helm-x", "Helmet", rarity="Exotic")]
+    with pytest.raises(ValueError, match="no legendary Legs for Warlock"):
+        bravery.roll_armor(armor, "Warlock", random.Random(0))

@@ -80,6 +80,10 @@ previews). Reads the inventory snapshot: refresh_inventory first."""
                     raise ToolError(f"the last roll is for {s['class']}: roll a new one with part=all")
             res = s["resolved"]
             res["date"] = date.today().isoformat()
+            # armor before the live subclass call: no exotic fails without touching the API
+            if part in ("all", "armor"):
+                res["armor"] = bravery.roll_armor(armor_items, cls, RNG)
+                s["intent"]["exotic"] = {"name": _exotic(res["armor"], armor_items)}
             if part in ("all", "subclass"):
                 elements = owned_elements(ctx, cls)
                 if not elements:
@@ -88,9 +92,6 @@ previews). Reads the inventory snapshot: refresh_inventory first."""
                                                       RNG)
             if part in ("all", "weapons"):
                 res["weapons"] = bravery.roll_weapons(weapon_items, RNG, cls)
-            if part in ("all", "armor"):
-                res["armor"] = bravery.roll_armor(armor_items, cls, RNG)
-                s["intent"]["exotic"] = {"name": _exotic(res["armor"], armor_items)}
             if part in ("all", "armor", "mods"):
                 mods = _mods(ctx, res["armor"], armor_items)
                 for a in res["armor"]:

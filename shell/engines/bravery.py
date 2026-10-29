@@ -59,6 +59,12 @@ def roll_armor(items: list[dict], cls: str, rng) -> list[dict]:
     exotics = [x for x in mine if x.get("rarity") == "Exotic"]
     if not exotics:
         raise ValueError(f"no exotic armor for {cls}")
+    # a slot with no legendary can only be filled by the exotic
+    bare = [s for s in ARMOR_SLOTS if not any(x["slot"] == s and x.get("rarity") != "Exotic" for x in mine)]
+    if bare:
+        exotics = [x for x in exotics if x["slot"] == bare[0]] if len(bare) == 1 else []
+        if not exotics:
+            raise ValueError(f"no legendary {', '.join(bare)} for {cls}")
     exotic = rng.choice(exotics)
     chosen = {exotic["slot"]: _entry(exotic["slot"], exotic)}
     for slot in ARMOR_SLOTS:
@@ -94,20 +100,14 @@ def roll_mods(armor_entries, armor_items, slot_mods: dict, rng, reserved: dict |
 
 
 def slot_mods(defs: dict) -> dict[str, dict[str, int]]:
-    """{armor slot: {mod name: energy cost}} from item definitions; several copies of a name: the base one (with a
-    collectible; the others are artifact-discounted), then the lowest hash."""
-    best = {}
-    for h, d in defs.items():
+    """{armor slot: {mod name: energy cost}} from item definitions; only mods with a collectible (the others are
+    artifact copies: discounted, or unlocked only by the artifact)."""
+    out = {}
+    for d in defs.values():
         plug = d.get("plug") or {}
         slot = MOD_SLOTS.get(plug.get("plugCategoryIdentifier"))
         name = (d.get("displayProperties") or {}).get("name")
         cost = (plug.get("energyCost") or {}).get("energyCost")
-        if not slot or not name or cost is None:
-            continue
-        key = (d.get("collectibleHash") is None, int(h))
-        if (slot, name) not in best or key < best[(slot, name)][0]:
-            best[(slot, name)] = (key, cost)
-    out = {}
-    for (slot, name), (_, cost) in best.items():
-        out.setdefault(slot, {})[name] = cost
+        if slot and name and cost is not None and d.get("collectibleHash") is not None:
+            out.setdefault(slot, {})[name] = cost
     return out
