@@ -58,6 +58,15 @@ def test_valid_encounter():
     ({"spots__0__sources": []}, "spot terminal: no source"),
     ({"phases__0__sources": ["reddit"]}, "phase panels: unknown guide reddit"),
     ({"sources__0__guide": "reddit"}, "sources: unknown guide reddit"),
+    ({"spots__0__name": ""}, "spot terminal: name required"),
+    ({"roles__0__name": None}, "role scanner: name required"),
+    ({"phases__0__name": KeyError}, "phase panels: name required"),
+    ({"phases__0__steps__scanner": "Call."}, "phase panels: steps for scanner must be a list of text"),
+    ({"phases__0__steps__operator": [3]}, "phase panels: steps for operator must be a list of text"),
+    ({"phases__0__steps": ["Call."]}, "phase panels: steps must map role ids to lists of text"),
+    ({"floors__0__rooms__0__w": "100"}, "room hall: x/y/w/h must be numbers in 0-100"),
+    ({"floors__0__rooms__0__x": 120}, "room hall: x/y/w/h must be numbers in 0-100"),
+    ({"floors__0__rooms__0__h": KeyError}, "room hall: x/y/w/h must be numbers in 0-100"),
 ])
 def test_rules(changes, problem):
     assert problem in bad(**changes)
@@ -112,3 +121,37 @@ def test_spot_ids_unique_across_the_raid(profile):
         "spot terminal: also in atraks-1 (prefix spot ids with the encounter)",
         "spot panel-l1: also in atraks-1 (prefix spot ids with the encounter)"]
     assert raids.shared_ids("deep-stone-crypt", "atraks-1", other) == []   # a file is not compared with itself
+
+
+def test_malformed_renames_raise_one_line(profile):
+    raids.folder("deep-stone-crypt").mkdir(parents=True)
+    (raids.folder("deep-stone-crypt") / "callouts.json").write_text("{oops", encoding="utf-8")
+    with pytest.raises(ValueError, match="^callouts.json: invalid JSON: "):
+        raids.load_renames("deep-stone-crypt")
+    (raids.folder("deep-stone-crypt") / "callouts.json").write_text("[1]", encoding="utf-8")
+    with pytest.raises(ValueError, match="^callouts.json: "):
+        raids.load_renames("deep-stone-crypt")
+
+
+def test_renames_written_atomically(profile, monkeypatch):
+    raids.save_rename("deep-stone-crypt", "panel-l1", "left 1")
+    monkeypatch.setattr(raids.os, "replace", lambda *a: (_ for _ in ()).throw(OSError("disk full")))
+    with pytest.raises(OSError):
+        raids.save_rename("deep-stone-crypt", "panel-l1", "left 2")
+    assert raids.load_renames("deep-stone-crypt") == {"panel-l1": "left 1"}
+
+
+INDEX = """# Guides — deep-stone-crypt
+
+| guide | updated | images | url | fetched |
+|---|---|---|---|---|
+| grindout | 2026-08-02 | 49 | https://grindout.com/x | 2026-10-28 |
+| shacknews | 2026-02-01 | 29 | https://www.shacknews.com/x | 2026-10-28 |
+"""
+
+
+def test_outdated_sources():
+    assert raids.outdated(ENC, INDEX) == [
+        "rebuild crypt-security: grindout updated 2026-08-02 (file built from 2026-07-20)"]
+    assert raids.outdated(ENC, INDEX.replace("2026-08-02", "2026-07-20")) == []
+    assert raids.outdated(ENC, "") == []

@@ -29,6 +29,18 @@ def _load(raid, encounter):
         raise ToolError(str(e)) from e
 
 
+def _renames(raid):
+    try:
+        return raids.load_renames(raid)
+    except ValueError as e:
+        raise ToolError(str(e)) from e
+
+
+def _outdated(raid, enc):
+    index = guides.folder() / raid / "index.md"
+    return raids.outdated(enc, index.read_text(encoding="utf-8")) if index.exists() else []
+
+
 def _pick(items, wanted, label):
     w = (wanted or "").strip().casefold()
     found = next((i for i in items if w in (i["id"].casefold(), i["name"].casefold())), None)
@@ -59,7 +71,7 @@ phases and roles, warnings. role / phase: id or name."""
             raise ToolError(f"{raid}/{encounter} is invalid: {'; '.join(problems[:5])}. Fix it, then raid_check.")
         r = _pick(enc["roles"], role, "role")
         p = _pick(enc["phases"], phase, "phase") if phase else enc["phases"][0]
-        names = raids.names(enc, raids.load_renames(raid))
+        names = raids.names(enc, _renames(raid))
         page = paths.profile_dir() / "raids" / "live.html"
         raid_page.write(page, raid_page.render(enc, names, r["id"], p["id"]))
         spots = {s["id"]: s for s in enc["spots"]}
@@ -69,7 +81,7 @@ phases and roles, warnings. role / phase: id or name."""
                 "not_on_map": [names[s] for s in used if spots[s].get("pos") is None],
                 "conflicts": enc.get("conflicts", []), "gaps": enc.get("gaps", []),
                 "phases": [x["name"] for x in enc["phases"]], "roles": [x["name"] for x in enc["roles"]],
-                "warnings": raids.orphan_renames(raid)}
+                "warnings": _outdated(raid, enc) + raids.orphan_renames(raid)}
 
     @tool(mcp)
     def raid_rename(raid: str, spot_id: str, name: str | None = None) -> dict:
@@ -81,4 +93,5 @@ encounter file is rebuilt); without name, back to the guides' label. Returns eve
             raise ToolError(f"cannot read the encounter files: {e}") from e
         if name and spot_id not in known:
             raise ToolError(f"unknown spot {spot_id!r} in {raid}; spots: {', '.join(sorted(known)) or 'none'}")
+        _renames(raid)
         return {"renames": raids.save_rename(raid, spot_id, name)}

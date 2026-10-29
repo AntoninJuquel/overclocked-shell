@@ -69,3 +69,28 @@ def test_overgear_article_and_modified_meta():
 def test_missing_container_raises(site, page):
     with pytest.raises(ValueError, match=site):
         sites.article(site, page)
+
+
+def test_unclosed_nav_stops_at_the_end_of_its_parent():
+    md, _ = extract.to_markdown("<div><nav><a>Home</a></div><h2>Atraks</h2><p>Kept.</p>", "https://x.com/")
+    assert md == "## Atraks\n\nKept."
+    md, _ = extract.to_markdown("<section><nav><ul><li>Menu</li></ul></nav><p>A</p></section><p>B</p>", "https://x/")
+    assert md == "A\n\nB"
+
+
+def test_srcset_and_picture_source_images():
+    html = ('<img srcset="/a-400.jpg 400w, /a-800.jpg 800w" alt="A">'
+            '<picture><source srcset="/b.webp 1x, /b2.webp 2x"><img alt="B"></picture><img alt="none">')
+    _, images = extract.to_markdown(html, "https://x.com/g")
+    assert images == [("https://x.com/a-400.jpg", "A"), ("https://x.com/b.webp", "B")]
+
+
+def test_divs_and_small_headings_are_blocks():
+    md, _ = extract.to_markdown("<div>One</div><div>Two</div><h5>Five</h5><h6>Six</h6><ul><li><div>Item</div></li></ul>",
+                                "https://x/")
+    assert md == "One\n\nTwo\n\n##### Five\n\n###### Six\n\n- Item"
+
+
+def test_alt_brackets_escaped():
+    _, images = extract.to_markdown('<img src="/a.png" alt="Map [left]">', "https://x/")
+    assert images == [("https://x/a.png", r"Map [left\]")]
