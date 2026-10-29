@@ -32,14 +32,19 @@ def _is_armor_mod(category):
     return category.startswith("enhancements.") or "armor_tiering.plugs.tuning" in category
 
 
+def _copy_key(h, d):
+    """Several definitions of one name: the base one (it has a collectible; mod copies without are
+    artifact-discounted), then not deprecated, then the lowest hash."""
+    return d.get("collectibleHash") is None, "Deprecated" in (d.get("itemTypeDisplayName") or ""), int(h)
+
+
 def _mod_index(defs):
-    """{name: hash} of armor mods. Several definitions of one name: the base mod (it has a collectible; the other
-    copies are artifact-discounted), then the lowest hash."""
+    """{name: hash} of armor mods, one copy per name (`_copy_key`)."""
     best = {}
     for h, d in defs.items():
         if not _is_armor_mod(_category(d)) or not _name(d):
             continue
-        key = (d.get("collectibleHash") is None, int(h))
+        key = _copy_key(h, d)
         if _name(d) not in best or key < best[_name(d)][0]:
             best[_name(d)] = (key, int(h))
     return {n: h for n, (_, h) in best.items()}
@@ -137,8 +142,11 @@ def loadout(s, armor_items, weapon_items, defs, socket_types) -> tuple[dict, lis
     exotic_hash = next((known[a["itemId"]]["itemHash"] for a in res.get("armor") or []
                         if a["itemId"] in known and known[a["itemId"]].get("rarity") == "Exotic"), None)
     if exotic_hash is None:
-        exotic_hash = next((int(h) for h, d in defs.items() if d.get("itemType") == 2 and _name(d) == exotic
-                            and (d.get("inventory") or {}).get("tierType") == EXOTIC_TIER), None)
+        copies = [(h, d) for h, d in defs.items() if d.get("itemType") == 2 and _name(d) == exotic
+                  and (d.get("inventory") or {}).get("tierType") == EXOTIC_TIER
+                  and d.get("classType") == CLASS_TYPES[s["class"]]]
+        if copies:
+            exotic_hash = int(min(copies, key=lambda hd: _copy_key(*hd))[0])
     stats = intent.get("stats") or {}
     mins, order = stats.get("minimums") or {}, list(stats.get("priority") or [])
     order += [k for k in mins if k not in order]

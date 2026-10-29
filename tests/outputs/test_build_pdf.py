@@ -57,3 +57,19 @@ def test_write(tmp_path):
     path = tmp_path / "builds" / "w.pdf"
     build_pdf.write(path, MD)
     assert path.read_bytes().startswith(b"%PDF")
+
+
+def test_escaped_bullets_and_indented_escapes_lose_their_backslash():
+    data, _ = plain("- \\-10 Weapons\n  \\# indented\n")
+    assert b"- -10 Weapons" in data and b"# indented" in data and b"\\\\" not in data
+
+
+def test_pipe_lines_without_separator_are_paragraphs():
+    data, _ = plain("| not a table |\n")
+    assert b"| not a table |" in data
+
+
+@pytest.mark.skipif(build_pdf.find_fonts() is None, reason="no Unicode TTF font on this machine")
+def test_unicode_font_maps_glyphs_it_lacks(caplog):
+    build_pdf.render("Done ✓ · Rated ★")
+    assert "missing the following glyphs" not in caplog.text

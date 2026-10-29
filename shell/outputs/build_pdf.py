@@ -17,10 +17,13 @@ FONT_CANDIDATES = [  # (regular, bold)
     ("/usr/share/fonts/dejavu/DejaVuSans.ttf", "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf"),
 ]
 NO_FONT = "no Unicode font found (Arial, DejaVu Sans): some symbols were simplified"
+NOT_IN_ARIAL = {"✓": "v", "★": "*"}  # simplified on both font paths
 # shortcut: Latin-1 fallback for machines without those fonts; bundle a free font if a template user hits it.
 SIMPLER = str.maketrans({"≥": ">=", "≤": "<=", "—": "-", "–": "-", "’": "'", "‘": "'", "“": '"', "”": '"',
-                         "•": "-", "…": "...", "→": "->", "✓": "v"})
+                         "•": "-", "…": "...", "→": "->", **NOT_IN_ARIAL})
 CELL = re.compile(r"(?<!\\)\|")
+SEPARATOR = re.compile(r"\|[\s|:-]+\|")
+UNESCAPE = re.compile(r"^( {0,3})\\([#>|-])")  # build_md escapes a leading #, >, | or -
 
 
 def find_fonts():
@@ -42,7 +45,10 @@ def render(md_text: str, fonts="auto", compress=True) -> tuple[bytes, list[str]]
     if fonts:
         pdf.add_font("body", "", fonts[0])
         pdf.add_font("body", "B", fonts[1])
-        family, clean, bullet, warnings = "body", (lambda t: t), "•", []
+        family, bullet, warnings, missing = "body", "•", [], str.maketrans(NOT_IN_ARIAL)
+
+        def clean(t):
+            return t.translate(missing)
     else:
         family, bullet, warnings = "helvetica", "-", [NO_FONT]
 
@@ -60,12 +66,12 @@ def render(md_text: str, fonts="auto", compress=True) -> tuple[bytes, list[str]]
     i = 0
     while i < len(lines):
         line = lines[i]
-        if line.startswith("|"):
-            rows = []
-            while i < len(lines) and lines[i].startswith("|"):
-                if not re.fullmatch(r"\|[\s|:-]+\|", lines[i].strip()):  # the |---| separator
-                    rows.append(_cells(lines[i]))
-                i += 1
+        j = i
+        while j < len(lines) and lines[j].startswith("|"):
+            j += 1
+        if any(SEPARATOR.fullmatch(x.strip()) for x in lines[i:j]):  # else plain lines that start with |
+            rows = [_cells(x) for x in lines[i:j] if not SEPARATOR.fullmatch(x.strip())]
+            i = j
             pdf.set_font(family, "", 8)
             with pdf.table(headings_style=FontFace(emphasis="BOLD"), line_height=4, text_align="LEFT") as table:
                 for cells in rows:
@@ -80,9 +86,9 @@ def render(md_text: str, fonts="auto", compress=True) -> tuple[bytes, list[str]]
             pdf.ln(2)
             text(line[3:], 13, "B", 2)
         elif line.startswith("- "):
-            text(f"{bullet} {line[2:]}", gap=0.5)
+            text(f"{bullet} {UNESCAPE.sub(r'\1\2', line[2:])}", gap=0.5)
         elif line.strip():
-            t = re.sub(r"^\\([#>|-])", r"\1", line)  # build_md escapes a leading #, >, | or -
+            t = UNESCAPE.sub(r"\1\2", line)
             text(t[1:-1] if t.startswith("_") and t.endswith("_") else t)
         i += 1
     return bytes(pdf.output()), warnings
