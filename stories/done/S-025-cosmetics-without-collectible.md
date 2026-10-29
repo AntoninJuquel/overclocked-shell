@@ -9,7 +9,7 @@ The profile's plug sets (component 305) know most of them: checked live on 2026-
 "not owned".
 
 ## Acceptance criteria
-- [ ] A cosmetic with no collectible is owned when a profile or character plug set lists it as insertable
-- [ ] It is not owned when a plug set that can hold it is on the profile but doesn't list it
-- [ ] Otherwise (listed but not insertable, or no plug set for it) it stays unknown
-- [ ] Cosmetics with a collectible keep using Collections, unchanged
+- [x] A cosmetic with no collectible is owned when a profile or character plug set lists it as insertable
+- [x] It is not owned when a plug set that can hold it is on the profile but doesn't list it
+- [x] Otherwise (listed but not insertable, or no plug set for it) it stays unknown
+- [x] Cosmetics with a collectible keep using Collections, unchanged

@@ -49,7 +49,7 @@ def build_index(items: dict, collectibles: dict, plug_sets: dict | None = None) 
     exotics = _exotic_names(items)
     sets_of = {}
     for s, d in (plug_sets or {}).items():
-        for p in d.get("reusablePlugItems", []):
+        for p in d.get("reusablePlugItems") or []:
             sets_of.setdefault(p.get("plugItemHash"), set()).add(int(s))
     index = {}
     for h, d in items.items():

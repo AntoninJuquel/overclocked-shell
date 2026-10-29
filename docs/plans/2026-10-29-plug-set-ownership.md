@@ -57,7 +57,7 @@ listed but `canInsert: false` → 28 owned, so ambiguous.
 
 - [x] `.claude/skills/fashion/SKILL.md` step 3: `owned: null` now means neither Collections nor the plug sets say
       (mostly old Armor 1.0 ornaments) — still "unknown", never "missing". `tests/test_skills.py` green.
-- [ ] Move S-025 to `doing/` at start, `done/` when its criteria pass.
+- [x] Move S-025 to `doing/` at start, `done/` when its criteria pass.
 
 ### Task 4: Live check (read-only)
 
