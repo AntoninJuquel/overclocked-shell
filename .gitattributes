@@ -1,0 +1,2 @@
+# Every text file is stored with LF; Windows checkouts may still show CRLF in the working tree.
+* text=auto eol=lf
