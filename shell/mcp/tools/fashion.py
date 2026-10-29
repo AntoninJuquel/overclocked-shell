@@ -60,8 +60,7 @@ problem ("not for <class>", "not found (close: …)"); plus a summary. save_as: 
         if bad:
             raise ToolError(f"slot is one of {', '.join(SLOTS)} (got {bad[0]!r})")
         items = ctx.manifest.table("DestinyInventoryItemDefinition", keep=False)
-        index = fashion.build_index(items, ctx.manifest.table("DestinyCollectibleDefinition", keep=False),
-                                    ctx.manifest.table("DestinyPlugSetDefinition", keep=False))
+        index = fashion.build_index(items, ctx.manifest.table("DestinyCollectibleDefinition", keep=False))
         try:
             inventory = {x.get("itemHash") for x in read_snapshot("armor")[0]}
         except FileNotFoundError:
@@ -82,7 +81,7 @@ problem ("not for <class>", "not found (close: …)"); plus a summary. save_as: 
 
     @tool(mcp)
     def wardrobes() -> list[dict]:
-        """Saved fashion looks (profile/fashion/*.json): name, class, credit, slots, saved date, file."""
+        """Saved fashion looks (profile/fashion/*.json): name, class, credit, slots, saved date, file, look."""
         out = []
         for p in sorted(_folder().glob("*.json")) if _folder().exists() else []:
             try:
@@ -90,5 +89,6 @@ problem ("not for <class>", "not found (close: …)"); plus a summary. save_as: 
             except ValueError:
                 continue
             out.append({"name": w.get("name"), "class": w.get("class"), "credit": w.get("credit"),
-                        "slots": len(w.get("look") or []), "saved": w.get("saved"), "file": p.name})
+                        "slots": len(w.get("look") or []), "saved": w.get("saved"), "file": p.name,
+                        "look": w.get("look")})
         return out

@@ -45,7 +45,7 @@ def test_fashion_check_uses_inventory_and_saves(root):
     saved = json.loads((root / "profile" / "fashion" / "purple-seraph.json").read_text(encoding="utf-8"))
     assert saved["class"] == "Warlock" and saved["credit"] == "Trimedic13" and saved["look"] == LOOK
     assert call("wardrobes", {}) == [{"name": "Purple Seraph", "class": "Warlock", "credit": "Trimedic13",
-                                      "slots": 4, "saved": saved["saved"], "file": "purple-seraph.json"}]
+                                      "slots": 4, "saved": saved["saved"], "file": "purple-seraph.json", "look": LOOK}]
 
 
 def test_fashion_check_errors(root):
@@ -55,3 +55,17 @@ def test_fashion_check_errors(root):
         call("fashion_check", {"character": "warlock", "look": []})
     with pytest.raises(ToolError, match="slot is one of"):
         call("fashion_check", {"character": "warlock", "look": [{"slot": "Boots", "shader": "Ceramic Alloy"}]})
+
+
+def test_wardrobes_return_the_look(root):
+    call("fashion_check", {"character": "Warlock", "look": LOOK, "save_as": "Purple Seraph"})
+    assert call("wardrobes", {})[0]["look"] == LOOK
+
+
+def test_collectibles_owned_in_either_scope(monkeypatch):
+    profile = {"profileCollectibles": {"data": {"collectibles": {"15": {"state": 1}, "16": {"state": 1}}}},
+               "characterCollectibles": {"data": {"c1": {"collectibles": {"15": {"state": 0}}}}}}
+    monkeypatch.setattr(tool, "primary_membership", lambda client: {})
+    monkeypatch.setattr(tool, "get_profile", lambda client, account, components: profile)
+    monkeypatch.setattr(tool, "character_id", lambda p, cls: "c1")
+    assert tool.collectibles_state(Context(), "Warlock") == {15: 0, 16: 1}

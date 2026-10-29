@@ -12,8 +12,8 @@ Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md
    ornaments the right one, top to bottom in slot order; the class shows in the ornament names or the picture. Keep
    the credit line ("credit to …"). Weapons, ghost, sparrow and ship are out of scope: mention them, don't check them.
    Show the list as a small table and ask "right?" before going on — a misread name costs a wrong verdict.
-2. **This week's Eververse.** If the newest `profile/context/<date>.json` is from a past week (or missing):
-   `refresh_context(character)`.
+2. **This week's Eververse.** If the newest `profile/context/<date>.json` is from a past week, missing, or for another
+   class than the look (Eververse's stock differs per class): `refresh_context(character)`.
 3. **Check.** `fashion_check(character, look)`. Answer with the summary first ("7 of 10 owned"), then each missing
    piece: its source and the Eververse line ("on sale: 1500 Bright Dust until …", "not on sale this week").
    Exotic ornaments: name the exotic they fit (`exotic_for`) and whether the player has it. `owned: null` = the
@@ -21,7 +21,8 @@ Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md
    offer the close names, ask which one; "not for <class>" → the look is for another class.
 4. **Save** when asked (or offer once): `fashion_check(character, look, save_as="<name>", credit="<credit>")`.
    `wardrobes()` lists the saved looks.
-5. **Wear it.** `get_equipped(character)` for the equipped armor ids, then **`set_sockets`** with, per equipped piece,
+5. **Wear it** (a look just checked, or a saved wardrobe: its `look` from `wardrobes()`, checked again with
+   `fashion_check` since what is owned may have changed). `get_equipped(character)` for the equipped armor ids, then **`set_sockets`** with, per equipped piece,
    its slot's ornament and shader names (`{"itemId": …, "plugs": ["<ornament>", "<shader>"]}`), `dry_run` first.
    Show the preview; only after the player's yes, call again with `dry_run=false`. Skip pieces they don't own and
    list them. An exotic ornament only goes on its exotic: skip it if that exotic isn't equipped. Never pass

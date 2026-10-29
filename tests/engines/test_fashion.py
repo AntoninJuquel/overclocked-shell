@@ -12,7 +12,8 @@ ITEMS = {
     "1": orn("Vigil of the Seraph", "armor_skins_hunter_head", 11),
     "2": orn("Vigil of the Seraph", "armor_skins_titan_head", 12),
     "3": orn("Vigil of the Seraph", "armor_skins_warlock_head", 13),
-    "4": orn("Electro-Brass", "armor_skins_warlock_exotic_arms", 14),
+    "4": dict(orn("Electro-Brass", "armor_skins_warlock_exotic_arms", 14),
+              displayProperties={"name": "Electro-Brass", "description": "Change the appearance of Sunbracers."}),
     "5": orn("Ceramic Alloy", "shader", 15),
     "6": orn("Jade Rabbit Robes", "armor_skins_warlock_chest", 16),
     "7": orn("Tyrian Abyss", "shader", 17),
@@ -27,7 +28,7 @@ COLLECTIBLES = {str(c): {"sourceString": s} for c, s in (
     (14, "Source: Eververse"), (15, "Source: Eververse"), (16, "Source: Eververse"), (17, ""),
     (18, "Source: Exotic engrams"), (19, ""))}
 PLUG_SETS = {"900": {"reusablePlugItems": [{"plugItemHash": 4}]}}
-INDEX = fashion.build_index(ITEMS, COLLECTIBLES, PLUG_SETS)
+INDEX = fashion.build_index(ITEMS, COLLECTIBLES)
 NOW = datetime(2026, 10, 29, tzinfo=timezone.utc)
 CTX = {"vendors": [{"vendorHash": fashion.EVERVERSE, "nextRefreshDate": "2026-11-03T17:00:00Z",
                     "sales": [{"itemHash": 6, "costs": [{"itemHash": 3373582085, "quantity": 1500}]}]}]}
@@ -100,3 +101,42 @@ def test_check_rows_per_slot_and_summary():
     assert bad["problem"].startswith("not found") and bad["owned"] is None
     assert r["summary"] == ("4 of 8 owned; missing: Electro-Brass (Eververse), Jade Rabbit Robes (Eververse); "
                             "unknown: Tyrian Abyss; not found: Painted Kitsune Bnod")
+
+
+def test_exotic_from_the_description_not_the_shared_plug_set():
+    items = dict(ITEMS)
+    items["4"] = dict(ITEMS["4"], displayProperties={"name": "Electro-Brass",
+                                                     "description": "Use this ornament to change the appearance of your nothing manacles."})
+    items["8"] = dict(ITEMS["8"], displayProperties={"name": "Necrotic Grip"})            # first on the shared set
+    items["10"] = {"displayProperties": {"name": "Nothing Manacles"}, "itemType": 2, "classType": 2,
+                   "inventory": {"tierType": 6}, "sockets": {"socketEntries": [{"reusablePlugSetHash": 900}]}}
+    entry, _ = fashion.resolve("Electro-Brass", "ornament", "Warlock", fashion.build_index(items, COLLECTIBLES))
+    assert entry["exotic_for"] == "Nothing Manacles"
+
+
+def test_eververse_stock_is_per_class():
+    vigil_hunter = fashion.build_index(ITEMS, COLLECTIBLES)["vigil of the seraph"][0]
+    ctx = dict(CTX, character="warlock")
+    assert fashion.eververse(vigil_hunter, ctx, NOW, ITEMS) == \
+        "stock unknown (this week's data is for Warlock: refresh_context(hunter))"
+
+
+def test_eververse_all_prices_and_packages():
+    items = dict(ITEMS, **{"500": {"displayProperties": {"name": "Rat King Pack"}, "itemType": 25,
+                                   "preview": {"derivedItemCategories": [{"items": [{"itemHash": 7}]}]}},
+                           "3147280338": {"displayProperties": {"name": "Silver"}}})
+    ctx = {"vendors": [{"vendorHash": fashion.EVERVERSE, "nextRefreshDate": "2026-11-03T17:00:00Z", "sales": [
+        {"itemHash": 6, "costs": [{"itemHash": 3147280338, "quantity": 600}]},
+        {"itemHash": 6, "costs": [{"itemHash": 3373582085, "quantity": 1200}]},
+        {"itemHash": 500, "costs": [{"itemHash": 3147280338, "quantity": 800}]}]}]}
+    jade = fashion.resolve("Jade Rabbit Robes", "ornament", "Warlock", INDEX)[0]
+    tyrian = fashion.resolve("Tyrian Abyss", "shader", "Warlock", INDEX)[0]
+    assert fashion.eververse(jade, ctx, NOW, items) == \
+        "on sale: 600 Silver or 1200 Bright Dust until 2026-11-03"
+    assert fashion.eververse(tyrian, ctx, NOW, items) == "on sale in Rat King Pack: 800 Silver until 2026-11-03"
+
+
+def test_ornament_slot_must_match_the_row():
+    entry, problem = fashion.resolve("Jade Rabbit Robes", "ornament", "Warlock", INDEX, slot="Helmet")
+    assert entry is None and problem == "is a Chest ornament"
+    assert fashion.resolve("Jade Rabbit Robes", "ornament", "Warlock", INDEX, slot="Chest")[1] is None
