@@ -43,9 +43,10 @@ def dps_row(w, rows):
     else:
         frame, type_words = _words(w.get("frame")), set(_words(w["type"]))
         found = [r for r in rows if r.get("Family") in FAMILIES.get(w["type"], ())]
-        if not all(set(_words(r["_name"])) <= type_words for r in found):
-            found = [r for r in found if (name := _words(r["_name"]))[:len(frame)] == frame and frame
-                     and set(name[len(frame):]) <= type_words]
+        framed = [r for r in found if (name := _words(r["_name"]))[:len(frame)] == frame and frame
+                  and set(name[len(frame):]) <= type_words]
+        # no row for its frame: a generic row of the family ("Trace rifle"; exotic rows of the family don't count)
+        found = framed or [r for r in found if set(_words(r["_name"])) <= type_words]
     return max(found, key=_dps, default=None)
 
 

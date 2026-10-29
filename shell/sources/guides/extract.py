@@ -33,7 +33,7 @@ class _Parser(HTMLParser):
         if self.skip is not None:
             return
         a = dict(attrs)
-        if tag in BLOCKS:
+        if tag in BLOCKS and not self._cell_div(tag):
             pending = "" if "".join(self.buf).strip() else self.prefix   # <li><div>: keep the dash
             self._flush()
             self.prefix = HEADINGS[tag] + " " if tag in HEADINGS else "- " if tag == "li" else pending
@@ -74,8 +74,12 @@ class _Parser(HTMLParser):
             caption = "".join(self.buf).strip()
             if self.images and not self.images[-1][1]:
                 self.images[-1][1] = re.sub(r"\s+", " ", caption)
-        if tag in BLOCKS:
+        if tag in BLOCKS and not self._cell_div(tag):
             self._flush()
+
+    def _cell_div(self, tag):
+        """A <div> inside a table cell is not a block: the row stays one line."""
+        return tag == "div" and ("td" in self.stack or "th" in self.stack)
 
     def handle_data(self, data):
         if self.skip is None:

@@ -4,6 +4,11 @@ import pytest
 
 from shell.sources.guides import extract, sites
 
+
+def test_div_inside_a_table_cell_keeps_the_row():
+    md, _ = extract.to_markdown("<table><tr><td><div>A</div></td><td><div>B</div></td></tr></table>", "https://x.y/")
+    assert md == "A | B"
+
 ARTICLE = """
 <h2>Crypt Security</h2>
 <p>Two floors: upstairs and the <b>basement</b>.</p>

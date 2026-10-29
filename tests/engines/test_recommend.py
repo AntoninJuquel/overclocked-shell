@@ -177,7 +177,8 @@ def test_exotic_ergo_without_its_intrinsic_row_takes_the_best(aegis):
 
 def test_legendary_trace_rifle_matches_a_frameless_row(aegis):
     write_aegis(aegis, "boss", "sustained", [
-        {"_name": "Trace rifle", "Name": "Trace rifle\nTarget Lock", "Family": "trace", "DPS": "6,000"}])
+        {"_name": "Trace rifle", "Name": "Trace rifle\nTarget Lock", "Family": "trace", "DPS": "6,000"},
+        {"_name": "Divinity", "Name": "Divinity", "Family": "trace", "DPS": "9,000"}])   # real family: exotics too
     trace = w("50", "Retrofuturist", type_="Trace Rifle", slot="Energy", frame="Adaptive Frame", ammo="Special")
     picks = recommend.recommend([trace], {}, "warlock", role="dps")["picks"]
     assert len(picks) == 1 and "DPS 6,000 (Trace rifle: Target Lock)" in picks[0]
