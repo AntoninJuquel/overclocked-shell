@@ -103,4 +103,4 @@ def to_markdown(article_html: str, base_url: str) -> tuple[str, list[tuple[str, 
     for i, b in enumerate(p.blocks):  # list items stay together, other blocks get a blank line
         out += ("" if i == 0 else "\n" if b.startswith("- ") and p.blocks[i - 1].startswith("- ") else "\n\n") + b
     # alts go inside ![...]: backslashes first, so an alt ending in "\" can't escape the "]"
-    return out, [(url, alt.replace("\\", "\\\\").replace("]", "\\]")) for url, alt in p.images]
+    return out, [(url, alt.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")) for url, alt in p.images]

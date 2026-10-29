@@ -98,7 +98,7 @@ def test_divs_and_small_headings_are_blocks():
 
 def test_alt_brackets_escaped():
     _, images = extract.to_markdown('<img src="/a.png" alt="Map [left]">', "https://x/")
-    assert images == [("https://x/a.png", r"Map [left\]")]
+    assert images == [("https://x/a.png", r"Map \[left\]")]
 
 
 def test_nested_skips_and_void_tags_inside_a_skip():
@@ -125,5 +125,6 @@ def test_picture_srcset_used_once_even_unclosed():
 
 
 def test_alt_backslashes_escaped_before_brackets():
-    _, images = extract.to_markdown(r'<img src="/a.png" alt="C:\dir\"><img src="/b.png" alt="a]b">', "https://x/")
-    assert [alt for _, alt in images] == [r"C:\\dir\\", r"a\]b"]
+    _, images = extract.to_markdown(r'<img src="/a.png" alt="C:\dir\"><img src="/b.png" alt="a]b">'
+                                    '<img src="/c.png" alt="see [map">', "https://x/")
+    assert [alt for _, alt in images] == [r"C:\\dir\\", r"a\]b", r"see \[map"]
