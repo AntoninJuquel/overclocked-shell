@@ -20,7 +20,7 @@ class FakeManifest:
 @pytest.fixture
 def root(tmp_path, monkeypatch):
     monkeypatch.setattr(paths, "profile_dir", lambda: tmp_path / "profile")
-    monkeypatch.setattr(tool, "collectibles_state", lambda ctx, cls: (STATE, None))
+    monkeypatch.setattr(tool, "collectibles_state", lambda ctx, cls: (STATE, None, None))
     (tmp_path / "profile" / "inventory").mkdir(parents=True)
     (tmp_path / "profile" / "inventory" / "armor.json").write_text(json.dumps([{"itemHash": 6, "name": "Jade Rabbit Robes"},
                                                                     {"itemHash": 77, "name": "Hood of the Great Hunt"}]),
@@ -70,7 +70,7 @@ def test_collectibles_owned_in_either_scope(monkeypatch):
     monkeypatch.setattr(tool, "primary_membership", lambda client: {})
     monkeypatch.setattr(tool, "get_profile", lambda client, account, components: profile)
     monkeypatch.setattr(tool, "character_id", lambda p, cls: "c1")
-    assert tool.collectibles_state(Context(), "Warlock") == ({15: 0, 16: 1}, None)
+    assert tool.collectibles_state(Context(), "Warlock")[:2] == ({15: 0, 16: 1}, None)
 
 
 def test_no_character_of_the_class_profile_scope_only(monkeypatch):
@@ -80,14 +80,14 @@ def test_no_character_of_the_class_profile_scope_only(monkeypatch):
     monkeypatch.setattr(tool, "primary_membership", lambda client: {})
     monkeypatch.setattr(tool, "get_profile", lambda client, account, components: profile)
     warning = "no warlock character: character-scoped ownership unknown"
-    assert tool.collectibles_state(Context(), "Warlock") == ({15: 1, 16: 0}, warning)
+    assert tool.collectibles_state(Context(), "Warlock")[:2] == ({15: 1, 16: 0}, warning)
 
 
 def test_warning_from_collectibles_reaches_the_result(root, monkeypatch):
-    monkeypatch.setattr(tool, "collectibles_state", lambda ctx, cls: (STATE, "no warlock character: x"))
+    monkeypatch.setattr(tool, "collectibles_state", lambda ctx, cls: (STATE, "no warlock character: x", None))
     r = call("fashion_check", {"character": "Warlock", "look": LOOK})
     assert r["warnings"] == ["no warlock character: x"]
-    monkeypatch.setattr(tool, "collectibles_state", lambda ctx, cls: (STATE, None))
+    monkeypatch.setattr(tool, "collectibles_state", lambda ctx, cls: (STATE, None, None))
     assert "warnings" not in call("fashion_check", {"character": "Warlock", "look": LOOK})
 
 
@@ -102,3 +102,41 @@ def test_saving_over_a_wardrobe_says_so(root):
     assert r["overwrote"] is False
     r = call("fashion_check", {"character": "Warlock", "look": LOOK, "save_as": "purple seraph"})
     assert r["overwrote"] is True
+
+
+def test_plug_sets_merged_for_the_class_character(monkeypatch):
+    seen = {}
+    profile = {"profileCollectibles": {"data": {"collectibles": {}}},
+               "characterCollectibles": {"data": {}},
+               "profilePlugSets": {"data": {"plugs": {"910": [{"plugItemHash": 20, "canInsert": True},
+                                                              {"plugItemHash": 23, "canInsert": False}]}}},
+               "characterPlugSets": {"data": {"c1": {"plugs": {"911": [{"plugItemHash": 24, "canInsert": True}]}},
+                                              "c2": {"plugs": {"912": [{"plugItemHash": 25, "canInsert": True}]}}}}}
+    monkeypatch.setattr(tool, "primary_membership", lambda client: {})
+    monkeypatch.setattr(tool, "get_profile", lambda client, account, components: seen.setdefault("c", components)
+                        and profile)
+    monkeypatch.setattr(tool, "character_id", lambda p, cls: "c1")
+    _, _, plugs = tool.collectibles_state(Context(), "Warlock")
+    assert 305 in seen["c"]
+    assert plugs == {"insertable": {20, 24}, "listed": {20, 23, 24}, "sets": {910, 911}}
+
+
+def test_no_character_of_the_class_profile_plug_sets_only(monkeypatch):
+    profile = {"profileCollectibles": {"data": {"collectibles": {}}}, "characters": {"data": {}},
+               "profilePlugSets": {"data": {"plugs": {"910": [{"plugItemHash": 20, "canInsert": True}]}}},
+               "characterPlugSets": {"data": {"c2": {"plugs": {"912": [{"plugItemHash": 25, "canInsert": True}]}}}}}
+    monkeypatch.setattr(tool, "primary_membership", lambda client: {})
+    monkeypatch.setattr(tool, "get_profile", lambda client, account, components: profile)
+    assert tool.collectibles_state(Context(), "Warlock")[2] == {"insertable": {20}, "listed": {20}, "sets": {910}}
+
+
+def test_fashion_check_owned_from_plug_sets(root, monkeypatch):
+    silent = {k: v for k, v in STATE.items() if k != 14}            # Electro-Brass: Collections don't say
+    plugs = {"insertable": {4}, "listed": {4}, "sets": {900}}
+    monkeypatch.setattr(tool, "collectibles_state", lambda ctx, cls: (silent, None, plugs))
+    r = call("fashion_check", {"character": "Warlock", "look": [{"slot": "Gauntlets", "ornament": "Electro-Brass"}]})
+    assert r["rows"][0]["owned"] is True
+    monkeypatch.setattr(tool, "collectibles_state",
+                        lambda ctx, cls: (silent, None, {"insertable": set(), "listed": set(), "sets": {900}}))
+    r = call("fashion_check", {"character": "Warlock", "look": [{"slot": "Gauntlets", "ornament": "Electro-Brass"}]})
+    assert r["rows"][0]["owned"] is False
