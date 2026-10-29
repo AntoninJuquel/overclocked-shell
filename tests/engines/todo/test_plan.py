@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -248,6 +248,15 @@ def test_run_adds_distorted_times(tmp_path, isolated_dirs):
     assert line.startswith("Europa ") and line.count("Europa") == 1 and ", then every 7 h (UTC" in line
     assert "distorted" not in by_id["masterwork/9"] and plan.NO_ROTATION not in doc["warnings"]
     assert f"   Distorted: {line}\n" in plan.render_md(doc)
+
+
+def test_run_warns_about_an_old_rotation(tmp_path, isolated_dirs):
+    todo_dir, week_dir = _dirs(tmp_path)
+    write_rotation(isolated_dirs)
+    manual = {"catalyst/collective-obligation": [{"type": "activity", "name": "Exploring Europa"}]}
+    doc = plan.run(todo_dir, week_dir, INDEX, manual, NOW + timedelta(days=8))
+    assert any(w.startswith("rotation fetched on 2026-10-07") for w in doc["warnings"])
+    assert not any("rotation fetched" in w for w in plan.run(todo_dir, week_dir, INDEX, manual, NOW)["warnings"])
 
 
 def test_run_without_rotation_warns(tmp_path):

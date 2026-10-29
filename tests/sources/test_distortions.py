@@ -68,7 +68,7 @@ def test_invalid_page_keeps_the_cache(page, bad):
     before = distortions.path().read_text(encoding="utf-8")
     page(bad)
     r = distortions.refresh(force=True)
-    assert not r["ok"] and "tracker page" in r["errors"][0]
+    assert not r["ok"] and "tracker page" in r["errors"][0] and r["stale"] == ["rotation.json"]
     assert distortions.path().read_text(encoding="utf-8") == before
 
 

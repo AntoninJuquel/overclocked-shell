@@ -63,7 +63,7 @@ def refresh(force: bool = False, only: list[str] | None = None) -> dict:
     try:
         rot = parse(html)
     except ValueError as e:   # the page changed shape: keep the cache, say so
-        return report(NAME, folder(), errors=[str(e)])
+        return report(NAME, folder(), stale=[path().name] if old is not None else [], errors=[str(e)])
     changed = old is None or _schedule_key(old) != _schedule_key(rot)
     rot.update(source=URL, fetched=datetime.now(timezone.utc).isoformat(timespec="seconds"))
     write_if_changed(path(), json.dumps(rot, indent=1, ensure_ascii=False))

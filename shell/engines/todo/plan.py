@@ -195,6 +195,9 @@ def _add_distortions(doc, now):
         line = distortions.todo_line(rot, [s["name"] for s in e["sources"]], now)
         if line:
             e["distorted"] = line
+    stale = distortions.stale_warning(rot, now)
+    if stale and any("distorted" in e for e in doc["entries"]):
+        doc["warnings"].append(stale)
 
 
 def run(todo_dir, week_dir, index, manual, now, build=None):
