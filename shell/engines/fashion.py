@@ -43,9 +43,14 @@ def _exotic_for(d, exotics):
     return exotics.get(m.group(1).strip().lower()) if m else None
 
 
-def build_index(items: dict, collectibles: dict) -> dict:
-    """{normalized name: [entry]} of shaders, ornaments and armor pieces."""
+def build_index(items: dict, collectibles: dict, plug_sets: dict | None = None) -> dict:
+    """{normalized name: [entry]} of shaders, ornaments and armor pieces; shaders and ornaments carry `sets`, the
+    plug sets (DestinyPlugSetDefinition) that can hold them, when `plug_sets` is given."""
     exotics = _exotic_names(items)
+    sets_of = {}
+    for s, d in (plug_sets or {}).items():
+        for p in d.get("reusablePlugItems") or []:
+            sets_of.setdefault(p.get("plugItemHash"), set()).add(int(s))
     index = {}
     for h, d in items.items():
         name, cat = _name(d), (d.get("plug") or {}).get("plugCategoryIdentifier") or ""
@@ -65,6 +70,8 @@ def build_index(items: dict, collectibles: dict) -> dict:
         else:
             continue
         e.update(hash=int(h), name=name, collectible=d.get("collectibleHash"), source=_source(collectibles, d))
+        if plug_sets is not None and e["kind"] != "armor":
+            e["sets"] = sets_of.get(int(h), set())
         index.setdefault(norm(name), []).append(e)
     return index
 
@@ -93,14 +100,23 @@ def resolve(name: str, kind: str, cls: str, index: dict, slot: str | None = None
     return sorted(mine, key=lambda e: (kinds.index(e["kind"]), e["collectible"] is None))[0], None
 
 
-def owned(entry: dict, state: dict, inventory: set) -> bool | None:
+def owned(entry: dict, state: dict, inventory: set, plugs: dict | None = None) -> bool | None:
     """True / False from Collections (or the inventory: item hashes, and normalized armor names since a copy of an
-    armor piece can have another hash); None when the profile doesn't say."""
+    armor piece can have another hash); when Collections don't say, from the profile's plug sets (`plugs`: plug
+    hashes "insertable" and "listed", plug set hashes "sets" present); None when neither says."""
     if entry["hash"] in inventory or (entry["kind"] == "armor" and norm(entry["name"]) in inventory):
         return True
-    if entry.get("collectible") is None or entry["collectible"] not in state:
+    if entry.get("collectible") is not None and entry["collectible"] in state:
+        return not state[entry["collectible"]] & NOT_ACQUIRED
+    if plugs is None:
         return None
-    return not state[entry["collectible"]] & NOT_ACQUIRED
+    if entry["hash"] in plugs["insertable"]:
+        return True
+    # checked live 2026-10-29: absent from a set the profile has = not owned 98% of the time; listed but not
+    # insertable is ambiguous (some owned), so unknown
+    if entry["hash"] not in plugs["listed"] and entry.get("sets", set()) & plugs["sets"]:
+        return False
+    return None
 
 
 def _price(sale, items):
@@ -141,7 +157,7 @@ def eververse(entry: dict, raw_context: dict | None, now: datetime, items: dict)
     return "not on sale this week"
 
 
-def check(look, cls, index, state, inventory, raw_context, now, items) -> dict:
+def check(look, cls, index, state, inventory, raw_context, now, items, plugs=None) -> dict:
     """{rows: one per slot and kind, summary}."""
     rows = []
     for slot in look:
@@ -154,7 +170,7 @@ def check(look, cls, index, state, inventory, raw_context, now, items) -> dict:
             if problem:
                 row["problem"] = problem
             else:
-                row.update(name=entry["name"], owned=owned(entry, state, inventory),
+                row.update(name=entry["name"], owned=owned(entry, state, inventory, plugs),
                            source=entry.get("source"), eververse=eververse(entry, raw_context, now, items))
                 if entry.get("exotic_for"):
                     row["exotic_for"] = entry["exotic_for"]

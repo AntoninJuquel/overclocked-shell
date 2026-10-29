@@ -153,3 +153,46 @@ def test_armor_owned_by_name_in_the_inventory():
     assert fashion.owned(hood, STATE, {"hood of the great hunt"}) is True      # another copy, another hash
     jade = fashion.resolve("Jade Rabbit Robes", "ornament", "Warlock", INDEX)[0]
     assert fashion.owned(jade, STATE, {"jade rabbit robes"}) is False          # an ornament needs its own hash
+
+
+# S-025: cosmetics without a collectible, owned from the profile's plug sets
+NO_COLL = {"20": orn("Lost Pacific Helmet", "armor_skins_warlock_head", None),
+           "21": orn("Spacewalk Bond", "armor_skins_warlock_class", None),
+           "22": orn("Dark Age Cloak", "armor_skins_warlock_class", None),
+           "23": orn("Bone Circlet", "shader", None)}
+NO_COLL_SETS = {"910": {"reusablePlugItems": [{"plugItemHash": 20}, {"plugItemHash": 21}]},
+                "911": {"reusablePlugItems": [{"plugItemHash": 23}]}}
+PLUGS = {"insertable": {20}, "listed": {20, 23}, "sets": {910, 911}}
+
+
+def test_index_records_the_plug_sets_that_hold_a_cosmetic():
+    index = fashion.build_index(NO_COLL, {}, NO_COLL_SETS)
+    assert index["lost pacific helmet"][0]["sets"] == {910}
+    assert index["dark age cloak"][0]["sets"] == set()
+    assert "sets" not in fashion.build_index(ITEMS, COLLECTIBLES)["hood of the great hunt"][0]   # armor: no plug
+
+
+def test_owned_from_plug_sets_without_a_collectible():
+    index = fashion.build_index(NO_COLL, {}, NO_COLL_SETS)
+    e = lambda n: index[n][0]  # noqa: E731
+    assert fashion.owned(e("lost pacific helmet"), {}, set(), PLUGS) is True      # listed, insertable
+    assert fashion.owned(e("spacewalk bond"), {}, set(), PLUGS) is False          # its set is there, it isn't
+    assert fashion.owned(e("bone circlet"), {}, set(), PLUGS) is None             # listed, not insertable
+    assert fashion.owned(e("dark age cloak"), {}, set(), PLUGS) is None           # in no plug set
+    absent = {"insertable": set(), "listed": set(), "sets": set()}
+    assert fashion.owned(e("spacewalk bond"), {}, set(), absent) is None          # its set isn't on the profile
+    assert fashion.owned(e("lost pacific helmet"), {}, set()) is None             # no plug data: as before
+
+
+def test_collections_win_over_plug_sets():
+    index = fashion.build_index(ITEMS, COLLECTIBLES, PLUG_SETS)
+    brass = fashion.resolve("Electro-Brass", "ornament", "Warlock", index)[0]   # collectible 14: not acquired
+    assert fashion.owned(brass, STATE, set(), {"insertable": {4}, "listed": {4}, "sets": {900}}) is False
+    assert fashion.owned(brass, {}, set(), {"insertable": {4}, "listed": {4}, "sets": {900}}) is True  # state silent
+
+
+def test_check_passes_plugs_through():
+    index = fashion.build_index(NO_COLL, {}, NO_COLL_SETS)
+    look = [{"slot": "Helmet", "ornament": "Lost Pacific Helmet"}, {"slot": "Class Item", "ornament": "Spacewalk Bond"}]
+    r = fashion.check(look, "Warlock", index, {}, set(), None, NOW, NO_COLL, PLUGS)
+    assert [row["owned"] for row in r["rows"]] == [True, False]

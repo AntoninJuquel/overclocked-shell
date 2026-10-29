@@ -16,8 +16,9 @@ Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md
    class than the look (Eververse's stock differs per class): `refresh_context(character)`.
 3. **Check.** `fashion_check(character, look)`. Answer with the summary first ("7 of 10 owned"), then each missing
    piece: its source and the Eververse line ("on sale: 1500 Bright Dust until …", "not on sale this week").
-   Exotic ornaments: name the exotic they fit (`exotic_for`) and whether the player has it. `owned: null` = the
-   profile doesn't say (privacy setting, brand-new item): say "unknown", never "missing". A `problem` "not found" →
+   Exotic ornaments: name the exotic they fit (`exotic_for`) and whether the player has it. `owned: null` = neither
+   Collections nor the profile's plug sets say (mostly old Armor 1.0 ornaments, a privacy setting, a brand-new
+   item): say "unknown", never "missing". A `problem` "not found" →
    offer the close names, ask which one; "not for <class>" → the look is for another class; "is a shader" / "is an
    ornament" / "is an armor piece" → the name was read in the wrong column: fix the table with the player. A
    `warnings` line (no character of the class) → say ownership may be incomplete.
