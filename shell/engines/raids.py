@@ -5,6 +5,7 @@ check them against the rules that keep them honest, and apply the player's callo
 A position on the map needs a pos_source (a guide's text or image): the map never shows an invented spot.
 """
 import json
+import os
 import re
 from pathlib import Path
 
@@ -61,6 +62,14 @@ def _names_a_guide(pos_source, guides):
     return first in guides and (rest.startswith("text") or re.fullmatch(r"image \d+.*", rest) is not None)
 
 
+def _named(label, item):
+    return [] if isinstance(item.get("name"), str) and item["name"].strip() else [f"{label}: name required"]
+
+
+def _in_map(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= 100
+
+
 def shared_ids(raid: str, encounter: str, enc: dict) -> list[str]:
     """Problems for spot ids another encounter of the raid also uses: renames are per raid, so ids must be unique."""
     out = []
@@ -87,11 +96,16 @@ def check(enc: dict, guides: set[str]) -> list[str]:
     problems += _dupes("phase", [p["id"] for p in enc["phases"]])
     if not enc["phases"]:
         problems.append("phases: none")
+    for f in enc["floors"]:
+        problems += [f"room {r['id']}: x/y/w/h must be numbers in 0-100" for r in f.get("rooms", [])
+                     if not all(_in_map(r.get(k)) for k in "xywh")]
+    problems += [p for r in enc["roles"] for p in _named(f"role {r['id']}", r)]
     total = sum(r.get("count", 0) for r in enc["roles"])
     if total != FIRETEAM:
         problems.append(f"roles: counts sum to {total}, not {FIRETEAM}")
     for s in enc["spots"]:
         label = f"spot {s['id']}"
+        problems += _named(label, s)
         if s.get("kind") not in KINDS:
             problems.append(f"{label}: unknown kind {s.get('kind')}")
         if s.get("floor") not in floors:
@@ -110,7 +124,14 @@ def check(enc: dict, guides: set[str]) -> list[str]:
         problems += _sourced(label, s, guides)
     for p in enc["phases"]:
         label = f"phase {p['id']}"
-        problems += [f"{label}: steps for unknown role {r}" for r in p.get("steps", {}) if r not in roles]
+        problems += _named(label, p)
+        steps = p.get("steps", {})
+        if not isinstance(steps, dict):
+            problems.append(f"{label}: steps must map role ids to lists of text")
+            steps = {}
+        problems += [f"{label}: steps for unknown role {r}" for r in steps if r not in roles]
+        problems += [f"{label}: steps for {r} must be a list of text" for r, v in steps.items()
+                     if not (isinstance(v, list) and all(isinstance(t, str) for t in v))]
         problems += [f"{label}: unknown spot {s}" for s in p.get("spots", []) if s not in spots]
         problems += _sourced(label, p, guides)
     return problems
@@ -127,7 +148,15 @@ def _renames_path(raid):
 
 def load_renames(raid: str) -> dict:
     path = _renames_path(raid)
-    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    if not path.exists():
+        return {}
+    try:
+        renames = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError as e:
+        raise ValueError(f"{path.name}: invalid JSON: {e}") from e
+    if not isinstance(renames, dict):
+        raise ValueError(f"{path.name}: not an object of spot id -> name")
+    return renames
 
 
 def save_rename(raid: str, spot_id: str, name: str | None) -> dict:
@@ -139,8 +168,23 @@ def save_rename(raid: str, spot_id: str, name: str | None) -> dict:
         renames.pop(spot_id, None)
     path = _renames_path(raid)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(renames, indent=1, ensure_ascii=False), encoding="utf-8")
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(renames, indent=1, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, path)
     return renames
+
+
+def outdated(enc: dict, index_md: str) -> list[str]:
+    """Warnings for the guides updated since the encounter file was built, from the guides' index.md table
+    ("| guide | updated | images | url | fetched |")."""
+    current = {}
+    for line in index_md.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) >= 2 and line.lstrip().startswith("|"):
+            current[cells[0]] = cells[1]
+    return [f"rebuild {enc['encounter']}: {s['guide']} updated {current[s['guide']]} (file built from "
+            f"{s.get('updated')})" for s in enc["sources"]
+            if s["guide"] in current and current[s["guide"]] != s.get("updated")]
 
 
 def orphan_renames(raid: str) -> list[str]:

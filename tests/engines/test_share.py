@@ -38,7 +38,8 @@ DEFS = {
     "22": plug("Grenade Mod", "enhancements.v2_general"),
     "23": plug("Balanced Tuning", "core.gear_systems.armor_tiering.plugs.tuning.mods"),
     "24": plug("Firepower", "enhancements.v2_arms"),
-    "50": {"displayProperties": {"name": "Getaway Artist"}, "itemType": 2, "inventory": {"tierType": 6}},
+    "50": {"displayProperties": {"name": "Getaway Artist"}, "itemType": 2, "inventory": {"tierType": 6},
+           "classType": 2, "collectibleHash": 1},
 }
 # Real manifest: a Void grenade socket has no initial plug, Stasis aspect sockets start on a shared empty plug;
 # the allowed categories come from the socket type's whitelist (2, 3). 1 has no whitelist: the initial plug decides.
@@ -112,3 +113,21 @@ def test_unknown_subclass_plug_warns_and_notes_keep_it_first():
     lo, warnings = share.loadout(s, ARMOR, WEAPONS, DEFS, SOCKET_TYPES)
     assert "subclass: Nope Aspect not found: in the notes" in warnings
     assert "Not in DIM slots: Nope Aspect, Mystery Mod" in lo["notes"]
+
+
+def test_mod_without_collectible_prefers_a_non_deprecated_copy():
+    defs = {"30": plug("Old Mod", "enhancements.v2_head", coll=None, type_name="Deprecated Armor Mod"),
+            "31": plug("Old Mod", "enhancements.v2_head", coll=None)}
+    assert share._mod_index(defs) == {"Old Mod": 31}
+
+
+def test_exotic_fallback_takes_the_collectible_copy_of_the_sheet_class():
+    s = copy.deepcopy(SHEET)
+    del s["resolved"]
+    exotic = {"displayProperties": {"name": "Getaway Artist"}, "itemType": 2, "inventory": {"tierType": 6}}
+    defs = {"40": {**exotic, "classType": 1, "collectibleHash": 1},                  # wrong class
+            "45": {**exotic, "classType": 2},                                         # no collectible
+            "51": {**exotic, "classType": 2, "collectibleHash": 1, "itemTypeDisplayName": "Deprecated Gauntlets"},
+            **DEFS, "50": {**exotic, "classType": 2, "collectibleHash": 1}}
+    lo, _ = share.loadout(s, ARMOR, WEAPONS, defs, SOCKET_TYPES)
+    assert lo["parameters"]["exoticArmorHash"] == 50

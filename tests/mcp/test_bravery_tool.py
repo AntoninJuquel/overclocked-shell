@@ -72,9 +72,48 @@ def test_part_errors(root):
         call({"character": "hunter", "part": "weapons"})
 
 
-def test_no_exotic_armor(root):
+def test_no_exotic_armor_fails_before_the_live_call_and_writes_nothing(root, monkeypatch):
+    def live(ctx, cls):
+        raise AssertionError("owned_elements called")
+    monkeypatch.setattr(tool, "owned_elements", live)
     with pytest.raises(ToolError, match="no exotic armor for Titan"):
         call({"character": "titan"})
+    assert not sheet.path_for("bravery").exists()
+
+
+def test_reroll_armor_updates_exotic_and_mods_together(root):
+    call({"character": "warlock"})
+    before = sheet.load(sheet.path_for("bravery"))
+    for seed in range(20):
+        tool.RNG.seed(seed)
+        r = call({"character": "warlock", "part": "armor"})
+        s = sheet.load(sheet.path_for("bravery"))
+        exotic = next(x["name"] for x in s["resolved"]["armor"] if x["itemId"] in {"helm-x", "legs-x"})
+        assert s["intent"]["exotic"]["name"] == exotic
+        assert s["intent"]["armor_mods"] == {x["slot"]: x["mods"] for x in s["resolved"]["armor"] if x["mods"]}
+        assert r["mods"] == s["intent"]["armor_mods"]
+        assert s["subclass"] == before["subclass"] and s["resolved"]["weapons"] == before["resolved"]["weapons"]
+
+
+def test_reroll_subclass_keeps_the_rest(root, monkeypatch):
+    call({"character": "warlock"})
+    before = sheet.load(sheet.path_for("bravery"))
+    monkeypatch.setattr(tool, "owned_elements", lambda ctx, cls: ["Void"])
+    r = call({"character": "warlock", "part": "subclass"})
+    after = sheet.load(sheet.path_for("bravery"))
+    assert r["subclass"]["element"] == "Void" and after["subclass"]["element"] == "Void"
+    assert after["resolved"]["armor"] == before["resolved"]["armor"]
+    assert after["resolved"]["weapons"] == before["resolved"]["weapons"]
+
+
+def test_reroll_mods_keeps_the_armor(root):
+    call({"character": "warlock"})
+    before = sheet.load(sheet.path_for("bravery"))
+    r = call({"character": "warlock", "part": "mods"})
+    after = sheet.load(sheet.path_for("bravery"))
+    ids = lambda s: [x["itemId"] for x in s["resolved"]["armor"]]  # noqa: E731
+    assert ids(after) == ids(before) and after["intent"]["exotic"] == before["intent"]["exotic"]
+    assert after["subclass"] == before["subclass"] and r["mods"] == after["intent"]["armor_mods"]
 
 
 def test_roll_keeps_installed_stat_mods_and_tunings_and_is_scratch(root):

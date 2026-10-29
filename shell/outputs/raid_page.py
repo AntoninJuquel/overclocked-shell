@@ -1,5 +1,6 @@
 """The live raid page for the player's second monitor: map first, then their role's steps for the phase, the
 whole fireteam's split, what the guides don't place or disagree on, and the guides' dates. Reloads itself."""
+import os
 from html import escape
 from pathlib import Path
 
@@ -65,4 +66,6 @@ def render(enc: dict, names: dict, role_id: str, phase_id: str) -> str:
 
 def write(path: Path, html: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(html, encoding="utf-8")
+    tmp = path.with_suffix(".html.tmp")
+    tmp.write_text(html, encoding="utf-8")
+    os.replace(tmp, path)   # the open page reloads every few seconds: never let it read half a file

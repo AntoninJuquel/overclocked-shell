@@ -140,3 +140,16 @@ def test_ornament_slot_must_match_the_row():
     entry, problem = fashion.resolve("Jade Rabbit Robes", "ornament", "Warlock", INDEX, slot="Helmet")
     assert entry is None and problem == "is a Chest ornament"
     assert fashion.resolve("Jade Rabbit Robes", "ornament", "Warlock", INDEX, slot="Chest")[1] is None
+
+
+def test_name_of_another_kind_says_which():
+    assert fashion.resolve("Ceramic Alloy", "ornament", "Warlock", INDEX) == (None, "is a shader")
+    assert fashion.resolve("Jade Rabbit Robes", "shader", "Warlock", INDEX) == (None, "is an ornament")
+    assert fashion.resolve("Hood of the Great Hunt", "shader", "Warlock", INDEX) == (None, "is an armor piece")
+
+
+def test_armor_owned_by_name_in_the_inventory():
+    hood = fashion.resolve("Hood of the Great Hunt", "ornament", "Warlock", INDEX)[0]
+    assert fashion.owned(hood, STATE, {"hood of the great hunt"}) is True      # another copy, another hash
+    jade = fashion.resolve("Jade Rabbit Robes", "ornament", "Warlock", INDEX)[0]
+    assert fashion.owned(jade, STATE, {"jade rabbit robes"}) is False          # an ornament needs its own hash

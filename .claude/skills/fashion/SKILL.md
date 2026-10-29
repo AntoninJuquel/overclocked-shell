@@ -18,12 +18,19 @@ Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md
    piece: its source and the Eververse line ("on sale: 1500 Bright Dust until …", "not on sale this week").
    Exotic ornaments: name the exotic they fit (`exotic_for`) and whether the player has it. `owned: null` = the
    profile doesn't say (privacy setting, brand-new item): say "unknown", never "missing". A `problem` "not found" →
-   offer the close names, ask which one; "not for <class>" → the look is for another class.
-4. **Save** when asked (or offer once): `fashion_check(character, look, save_as="<name>", credit="<credit>")`.
-   `wardrobes()` lists the saved looks.
+   offer the close names, ask which one; "not for <class>" → the look is for another class; "is a shader" / "is an
+   ornament" / "is an armor piece" → the name was read in the wrong column: fix the table with the player. A
+   `warnings` line (no character of the class) → say ownership may be incomplete.
+4. **Save** when asked (or offer once). Check `wardrobes()` first: if the name is taken, ask before overwriting
+   (or pick another name). Then `fashion_check(character, look, save_as="<name>", credit="<credit>")`;
+   `overwrote: true` = an older wardrobe was replaced.
 5. **Wear it** (a look just checked, or a saved wardrobe: its `look` from `wardrobes()`, checked again with
    `fashion_check` since what is owned may have changed). `get_equipped(character)` for the equipped armor ids, then **`set_sockets`** with, per equipped piece,
    its slot's ornament and shader names (`{"itemId": …, "plugs": ["<ornament>", "<shader>"]}`), `dry_run` first.
    Show the preview; only after the player's yes, call again with `dry_run=false`. Skip pieces they don't own and
    list them. An exotic ornament only goes on its exotic: skip it if that exotic isn't equipped. Never pass
    `force`. Only ornaments and shaders — never mods, perks or stats.
+   An armor row (the look uses the base armor piece, not an ornament) is not a plug: the player equips that piece
+   (`equip_items`, after its preview) and only its shader goes through `set_sockets`. Legacy armor
+   refuses the universal ornaments: `set_sockets` answers "no socket takes" — tell the player that piece can't wear
+   it and a newer piece of the slot can.

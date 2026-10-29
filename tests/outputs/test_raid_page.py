@@ -53,3 +53,12 @@ def test_svg_labels_point_away_from_the_centre_and_stay_inside(x, anchor):
     enc = copy.deepcopy(ENC)
     enc["spots"][0]["pos"] = [x, 50]
     assert f'text-anchor="{anchor}"' in raid_map.svg(enc, "upper", NAMES, set()).split("Term A")[0].rsplit("<g", 1)[1]
+
+
+def test_write_is_atomic(tmp_path, monkeypatch):
+    page = tmp_path / "live.html"
+    raid_page.write(page, "old")
+    monkeypatch.setattr(raid_page.os, "replace", lambda *a: (_ for _ in ()).throw(OSError("disk full")))
+    with pytest.raises(OSError):
+        raid_page.write(page, "new")
+    assert page.read_text(encoding="utf-8") == "old"

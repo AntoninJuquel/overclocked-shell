@@ -80,3 +80,21 @@ def test_raid_rename(root):
     with pytest.raises(ToolError, match="unknown spot"):
         call("raid_rename", {"raid": RAID, "spot_id": "nope", "name": "x"})
     assert call("raid_rename", {"raid": RAID, "spot_id": "panel-l1"})["renames"] == {}
+
+
+def test_malformed_callouts_are_tool_errors(root):
+    write(root, ENC)
+    (root / "profile" / "raids" / RAID / "callouts.json").write_text("{oops", encoding="utf-8")
+    with pytest.raises(ToolError, match="callouts.json: invalid JSON"):
+        call("raid_show", {"raid": RAID, "encounter": "crypt-security", "role": "scanner"})
+    with pytest.raises(ToolError, match="callouts.json: invalid JSON"):
+        call("raid_rename", {"raid": RAID, "spot_id": "panel-l1", "name": "left 1"})
+
+
+def test_raid_show_flags_a_guide_updated_since_the_file(root):
+    write(root, ENC)
+    (root / "cache" / "guides" / RAID / "index.md").write_text(
+        "| guide | updated | images | url | fetched |\n|---|---|---|---|---|\n"
+        "| grindout | 2026-08-02 | 49 | u | 2026-10-28 |\n", encoding="utf-8")
+    r = call("raid_show", {"raid": RAID, "encounter": "crypt-security", "role": "scanner"})
+    assert r["warnings"] == ["rebuild crypt-security: grindout updated 2026-08-02 (file built from 2026-07-20)"]

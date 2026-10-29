@@ -20,9 +20,11 @@ class FakeManifest:
 @pytest.fixture
 def root(tmp_path, monkeypatch):
     monkeypatch.setattr(paths, "profile_dir", lambda: tmp_path / "profile")
-    monkeypatch.setattr(tool, "collectibles_state", lambda ctx, cls: STATE)
+    monkeypatch.setattr(tool, "collectibles_state", lambda ctx, cls: (STATE, None))
     (tmp_path / "profile" / "inventory").mkdir(parents=True)
-    (tmp_path / "profile" / "inventory" / "armor.json").write_text(json.dumps([{"itemHash": 6}]), encoding="utf-8")
+    (tmp_path / "profile" / "inventory" / "armor.json").write_text(json.dumps([{"itemHash": 6, "name": "Jade Rabbit Robes"},
+                                                                    {"itemHash": 77, "name": "Hood of the Great Hunt"}]),
+                                                        encoding="utf-8")
     (tmp_path / "profile" / "context").mkdir()
     (tmp_path / "profile" / "context" / "2026-10-28.json").write_text(json.dumps(CTX), encoding="utf-8")
     return tmp_path
@@ -68,4 +70,35 @@ def test_collectibles_owned_in_either_scope(monkeypatch):
     monkeypatch.setattr(tool, "primary_membership", lambda client: {})
     monkeypatch.setattr(tool, "get_profile", lambda client, account, components: profile)
     monkeypatch.setattr(tool, "character_id", lambda p, cls: "c1")
-    assert tool.collectibles_state(Context(), "Warlock") == {15: 0, 16: 1}
+    assert tool.collectibles_state(Context(), "Warlock") == ({15: 0, 16: 1}, None)
+
+
+def test_no_character_of_the_class_profile_scope_only(monkeypatch):
+    profile = {"profileCollectibles": {"data": {"collectibles": {"15": {"state": 1}, "16": {"state": 0}}}},
+               "characterCollectibles": {"data": {"c1": {"collectibles": {"15": {"state": 0}}}}},
+               "characters": {"data": {"c1": {"classType": 1}}}}
+    monkeypatch.setattr(tool, "primary_membership", lambda client: {})
+    monkeypatch.setattr(tool, "get_profile", lambda client, account, components: profile)
+    warning = "no warlock character: character-scoped ownership unknown"
+    assert tool.collectibles_state(Context(), "Warlock") == ({15: 1, 16: 0}, warning)
+
+
+def test_warning_from_collectibles_reaches_the_result(root, monkeypatch):
+    monkeypatch.setattr(tool, "collectibles_state", lambda ctx, cls: (STATE, "no warlock character: x"))
+    r = call("fashion_check", {"character": "Warlock", "look": LOOK})
+    assert r["warnings"] == ["no warlock character: x"]
+    monkeypatch.setattr(tool, "collectibles_state", lambda ctx, cls: (STATE, None))
+    assert "warnings" not in call("fashion_check", {"character": "Warlock", "look": LOOK})
+
+
+def test_armor_row_owned_by_name(root):
+    r = call("fashion_check", {"character": "Warlock", "look": [{"slot": "Helmet",
+                                                                 "ornament": "Hood of the Great Hunt"}]})
+    assert r["rows"][0]["owned"] is True                          # snapshot copy has another hash
+
+
+def test_saving_over_a_wardrobe_says_so(root):
+    r = call("fashion_check", {"character": "Warlock", "look": LOOK, "save_as": "Purple Seraph"})
+    assert r["overwrote"] is False
+    r = call("fashion_check", {"character": "Warlock", "look": LOOK, "save_as": "purple seraph"})
+    assert r["overwrote"] is True

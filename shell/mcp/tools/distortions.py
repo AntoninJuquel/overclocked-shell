@@ -23,14 +23,11 @@ quote source and fetched. Needs refresh_references(source="distortions") once.""
         if rot is None:
             raise ToolError('No Distortion rotation cached: call refresh_references(source="distortions").')
         now = datetime.now(timezone.utc)
-        warnings = []
-        if engine.stale(rot, now):
-            warnings.append(f"rotation fetched on {rot['fetched'][:10]}: refresh_references(source=\"distortions\", "
-                            f"force=true) if the order may have changed")
+        warnings = [w for w in [engine.stale_warning(rot, now)] if w]
         schedule = engine.schedule(rot, now, hours)
         result = {"now": schedule[0], "schedule": schedule, "offset": engine.offset(now), "source": rot["source"],
                   "fetched": rot["fetched"], "warnings": warnings}
-        if destination:
+        if destination is not None:
             found = engine.match(destination, rot)
             if found is None:
                 raise ToolError(f"not a Distortion destination: {destination} "

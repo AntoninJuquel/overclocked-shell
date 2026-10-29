@@ -1,6 +1,7 @@
 """Distortion schedule from the cached rotation (sources.distortions): which destination is Distorted at a given
 hour, its next windows, in local time. Pure: hours are Unix epoch hours (UTC), `tz` only changes the display.
 """
+import re
 from datetime import datetime, timedelta, timezone
 
 PERIOD = 7
@@ -19,8 +20,14 @@ def active(rot, hour: int) -> str:
 
 def match(name: str, rot) -> str | None:
     """The rotation's destination this source name designates, or None ("Throne World" = "Savathun's Throne
-    World", "European Dead Zone" = "EDZ")."""
-    return next((d for d in rot["order"] if _key(d) == _key(name)), None)
+    World", "European Dead Zone" = "EDZ"), also inside a longer name as a whole word ("Exploring Europa")."""
+    exact = next((d for d in rot["order"] if _key(d) == _key(name)), None)
+    if exact:
+        return exact
+    s = name.replace("’", "'").lower()
+    for long, short in ALIASES.items():
+        s = re.sub(rf"\b{long}\b", short, s)
+    return next((d for d in rot["order"] if re.search(rf"\b{re.escape(_key(d))}\b", s)), None)
 
 
 def _hour(now: datetime) -> int:
@@ -41,7 +48,7 @@ def _local(hour, tz):
 
 def day(when: datetime, now: datetime) -> str:
     delta = (when.date() - now.date()).days
-    return {0: "today", 1: "tomorrow"}.get(delta, f"{when:%a}")
+    return {0: "today", 1: "tomorrow"}.get(delta, f"{when:%a}" if delta <= 6 else f"{when:%a} {when.day}")
 
 
 def fmt(hour: int, now: datetime, tz=None) -> str:
@@ -49,7 +56,8 @@ def fmt(hour: int, now: datetime, tz=None) -> str:
     start, end = _local(hour, tz), _local(hour + 1, tz)
     if hour == _hour(now):
         return f"now until {end:%H:%M}"
-    return f"{day(start, now.astimezone(tz))} {start:%H:%M}–{end:%H:%M}"
+    own = "" if offset(start, tz) == offset(now, tz) else f" ({offset(start, tz)})"   # a DST change since now
+    return f"{day(start, now.astimezone(tz))} {start:%H:%M}–{end:%H:%M}{own}"
 
 
 def _absolute(hour: int, tz=None) -> str:
@@ -78,4 +86,14 @@ def todo_line(rot, source_names, now: datetime, tz=None) -> str | None:
 
 
 def stale(rot, now: datetime, days: int = 7) -> bool:
-    return now - datetime.fromisoformat(rot["fetched"]) > timedelta(days=days)
+    fetched = datetime.fromisoformat(rot["fetched"])
+    if fetched.tzinfo is None:
+        fetched = fetched.replace(tzinfo=timezone.utc)
+    return now - fetched > timedelta(days=days)
+
+
+def stale_warning(rot, now: datetime) -> str | None:
+    if stale(rot, now):
+        return (f"rotation fetched on {rot['fetched'][:10]}: refresh_references(source=\"distortions\", force=true) "
+                f"if the order may have changed")
+    return None

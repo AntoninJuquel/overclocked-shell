@@ -41,5 +41,7 @@ def test_distortions_tool(root):
     assert len(r["next"]) == 3 and r["destination"] == "Savathun's Throne World"
     with pytest.raises(ToolError, match="not a Distortion destination"):
         call({"destination": "Mars"})
+    with pytest.raises(ToolError, match="destinations: Cosmodrome"):
+        call({"destination": ""})
     with pytest.raises(ToolError, match="hours"):
         call({"hours": 0})

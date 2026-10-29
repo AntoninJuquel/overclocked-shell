@@ -9,27 +9,35 @@ from mcp.server.mcpserver.exceptions import ToolError
 from shell.context import Context
 from shell.core import paths
 from shell.engines import fashion
+from shell.core.bungie import BungieApiError
 from shell.engines.account import character_id, get_profile, primary_membership
 from shell.engines.builds.sheet import slug
 from shell.engines.builds.snapshot import read_snapshot
 from shell.mcp import tool
+from shell.sources.aegis.names import norm
 
 CLASSES = ("Titan", "Hunter", "Warlock")
 SLOTS = ("Helmet", "Gauntlets", "Chest", "Legs", "Class Item")
 
 
-def collectibles_state(ctx: Context, cls: str) -> dict[int, int]:
-    """{collectible hash: state}, profile and the character combined (owned in either scope = owned)."""
+def collectibles_state(ctx: Context, cls: str) -> tuple[dict[int, int], str | None]:
+    """({collectible hash: state}, warning), profile and the character combined (owned in either scope = owned);
+    no character of the class: the profile scope only, with a warning."""
     account = primary_membership(ctx.client)
     profile = get_profile(ctx.client, account, [200, 800])
     scopes = [(profile.get("profileCollectibles") or {}).get("data", {}).get("collectibles", {})]
-    cid = character_id(profile, cls.lower())
-    scopes.append(((profile.get("characterCollectibles") or {}).get("data", {}).get(cid) or {}).get("collectibles", {}))
+    warning = None
+    try:
+        cid = character_id(profile, cls.lower())
+        scopes.append(((profile.get("characterCollectibles") or {}).get("data", {}).get(cid) or {})
+                      .get("collectibles", {}))
+    except BungieApiError:
+        warning = f"no {cls.lower()} character: character-scoped ownership unknown"
     state = {}
     for scope in scopes:
         for h, c in scope.items():
             state[int(h)] = state.get(int(h), c.get("state", 0)) & c.get("state", 0)
-    return state
+    return state, warning
 
 
 def _folder():
@@ -49,8 +57,9 @@ def register(mcp: MCPServer, ctx: Context) -> None:
 Legs|Class Item", "ornament": name?, "shader": name?}] (read from the player's screenshot and confirmed with them).
 Per piece: owned (Collections or inventory; null = the profile doesn't say), source (collectible source line),
 eververse (on sale this week and price, from the newest refresh_context), exotic_for (an exotic ornament's exotic),
-problem ("not for <class>", "not found (close: …)"); plus a summary. save_as: save the look as a wardrobe
-(profile/fashion/<slug>.json) with its credit."""
+problem ("not for <class>", "is a shader" / "is an ornament" / "is an armor piece", "not found (close: …)");
+plus a summary and warnings. save_as: save the look as a wardrobe (profile/fashion/<slug>.json) with its credit;
+overwrote: true when a wardrobe of that name was replaced."""
         cls = next((c for c in CLASSES if c.lower() == (character or "").strip().lower()), None)
         if cls is None:
             raise ToolError("character is titan, hunter or warlock")
@@ -62,17 +71,22 @@ problem ("not for <class>", "not found (close: …)"); plus a summary. save_as: 
         items = ctx.manifest.table("DestinyInventoryItemDefinition", keep=False)
         index = fashion.build_index(items, ctx.manifest.table("DestinyCollectibleDefinition", keep=False))
         try:
-            inventory = {x.get("itemHash") for x in read_snapshot("armor")[0]}
+            snapshot = read_snapshot("armor")[0]
         except FileNotFoundError:
-            inventory = set()
-        result = fashion.check(look, cls, index, collectibles_state(ctx, cls), inventory, _newest_context(),
-                               datetime.now(timezone.utc), items)
+            snapshot = []
+        inventory = {x.get("itemHash") for x in snapshot} | {norm(x["name"]) for x in snapshot if x.get("name")}
+        state, warning = collectibles_state(ctx, cls)
+        result = fashion.check(look, cls, index, state, inventory, _newest_context(), datetime.now(timezone.utc),
+                               items)
+        if warning:
+            result["warnings"] = [warning]
         if save_as:
             try:
                 path = _folder() / f"{slug(save_as)}.json"
             except ValueError as e:
                 raise ToolError(str(e)) from e
             path.parent.mkdir(parents=True, exist_ok=True)
+            result["overwrote"] = path.exists()
             path.write_text(json.dumps({"name": save_as, "class": cls, "credit": credit, "look": look,
                                         "saved": datetime.now(timezone.utc).date().isoformat()},
                                        indent=1, ensure_ascii=False), encoding="utf-8")
