@@ -173,3 +173,44 @@ def test_exotic_ergo_without_its_intrinsic_row_takes_the_best(aegis):
     write_dps(aegis)
     picks = recommend.recommend([ROCKETS[2]], {}, "warlock", role="dps")["picks"]
     assert "DPS 15,000" in picks[0]
+
+
+def test_legendary_trace_rifle_matches_a_frameless_row(aegis):
+    write_aegis(aegis, "boss", "sustained", [
+        {"_name": "Trace rifle", "Name": "Trace rifle\nTarget Lock", "Family": "trace", "DPS": "6,000"}])
+    trace = w("50", "Retrofuturist", type_="Trace Rifle", slot="Energy", frame="Adaptive Frame", ammo="Special")
+    picks = recommend.recommend([trace], {}, "warlock", role="dps")["picks"]
+    assert len(picks) == 1 and "DPS 6,000 (Trace rifle: Target Lock)" in picks[0]
+
+
+def test_full_type_name_matches_exactly(aegis):
+    write_ratings(aegis)
+    items = [w("60", "Fuse", type_="Fusion Rifle", slot="Energy"),
+             w("61", "Linear", type_="Linear Fusion Rifle", slot="Power", ammo="Heavy")]
+    names = lambda t: [x.split(" | ")[2] for x in recommend.recommend(items, {}, "warlock", type_=t)["picks"]]  # noqa: E731
+    assert names("fusion rifle") == ["Fuse"]
+    assert names("fusion") == ["Fuse", "Linear"]                      # a part of a name: substring, as before
+
+
+def test_not_owned_keeps_other_tab_rows_last_and_marked(aegis):
+    write_ratings(aegis)
+    write_aegis(aegis, "endgame", "weapons-other", [
+        {"_name": "Other Gun", "Tier": "S", "#": "1", "Energy": "Strand"},
+        {"_name": "Unrated Gun", "Tier": "A", "#": "1", "Energy": "Strand"}], tab="Other")   # owned, rated only here
+    r = recommend.recommend(ITEMS[:2] + ITEMS[6:], {}, "warlock", type_="auto", element="Strand")
+    assert r["not_owned"] == ["S #1 | Rufus's Fury | weapons-autos", "S #2 | Unowned Best | weapons-autos",
+                              "S #1 | Other Gun | Other | type not given by Aegis (Other tab)"]
+
+
+def test_general_label_names_the_aegis_tab(aegis):
+    write_ratings(aegis)
+    picks = recommend.recommend(ITEMS, {}, "warlock", slot="Kinetic")["picks"]
+    assert " | Aegis S #1 (weapons-autos) | " in picks[0] and " | Aegis — | " in picks[-1]
+
+
+def test_empty_selection_warns(aegis):
+    write_ratings(aegis)
+    write_dps(aegis)
+    for role in ("general", "dps"):
+        r = recommend.recommend(ITEMS, {}, "warlock", role=role, type_="sword")
+        assert r["picks"] == [] and r["warnings"] == ["no owned weapon matches the filters"]

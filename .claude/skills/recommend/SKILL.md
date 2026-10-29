@@ -37,4 +37,5 @@ the Compendium or the account.
    - 2–3 owned alternatives, one line each.
    - `not_owned`: one line, "worth farming", offered to the TODO (`todo` skill) — never added silently.
 7. **Offer to equip.** `equip_items(character, [ids])` previews by default: show it, call again with
-   `dry_run=false` only after the player's yes, then `refresh_inventory()`.
+   `dry_run=false` only after the player's yes, then `refresh_inventory()`. A `second exotic` note: put the
+   replacement for the other slot (an owned legendary of that slot) in the same `equip_items` call.

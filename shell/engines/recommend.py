@@ -34,7 +34,7 @@ def dps_row(w, rows):
     and whose setup names their intrinsic (Ergo Sum: The Perfect Fifth vs Unplanned Reprieve).
     A legendary matches an archetype row
     ("Aggressive rocket launcher") when the row's family is its type's, the row name starts with its frame and the
-    rest are words of its type. shortcut: the row's perks are shown, not matched; match them if picks mislead."""
+    rest are words of its type; in a family whose rows name no frame ("Trace rifle"), on the family alone. shortcut: the row's perks are shown, not matched; match them if picks mislead."""
     if w.get("rarity") == "Exotic":
         found = [r for r in rows if norm(r["_name"]) == norm(w["name"])]
         found = [r for r in found if r.get("Family") in FAMILIES.get(w["type"], ())] or found
@@ -42,9 +42,10 @@ def dps_row(w, rows):
         found = [r for r in found if intrinsic and intrinsic in (r.get("Name") or "").lower()] or found
     else:
         frame, type_words = _words(w.get("frame")), set(_words(w["type"]))
-        found = [r for r in rows if r.get("Family") in FAMILIES.get(w["type"], ())
-                 and (name := _words(r["_name"]))[:len(frame)] == frame and frame
-                 and set(name[len(frame):]) <= type_words]
+        found = [r for r in rows if r.get("Family") in FAMILIES.get(w["type"], ())]
+        if not all(set(_words(r["_name"])) <= type_words for r in found):
+            found = [r for r in found if (name := _words(r["_name"]))[:len(frame)] == frame and frame
+                     and set(name[len(frame):]) <= type_words]
     return max(found, key=_dps, default=None)
 
 
@@ -92,15 +93,23 @@ def _best_copies(rows, grades, cls, first=lambda w: 0):
     return list(best.values())
 
 
+def _type_ok(type_, weapon_type):
+    """A full type name ("Fusion Rifle") matches exactly, a part of one ("fusion") as a substring."""
+    t = type_.lower()
+    return t == weapon_type.lower() if t in {x.lower() for x in FAMILIES} else t in weapon_type.lower()
+
+
 def _not_owned(items, type_, element, above):
+    """The Other tab gives no type: its rows come last, marked, as in `rankings`."""
     owned = {norm(w["name"]) for w in items}
-    found = [r for spec in config.weapon_tabs() if spec.weapon_type and type_.lower() in spec.weapon_type.lower()
-             for r in lookup.rows("endgame", spec.slug)]
+    found = [(not spec.weapon_type, r) for spec in config.weapon_tabs()
+             if not spec.weapon_type or _type_ok(type_, spec.weapon_type) for r in lookup.rows("endgame", spec.slug)]
     # Exotic rows are left out: their Type column is the ammo (primary / special / power), not a weapon type.
-    found = [r for r in found if norm(r["_name"]) not in owned and lookup.tier_key(r) < above
+    found = [(u, r) for u, r in found if norm(r["_name"]) not in owned and lookup.tier_key(r) < above
              and (not element or (r.get("Energy") or "").strip().lower() == element.lower())]
-    found.sort(key=lookup.tier_key)
-    return [f"{lookup.tier_label(r)} | {first_line(r['_name'])} | {r['_tab']}" for r in found[:3]]
+    found.sort(key=lambda ur: (ur[0], lookup.tier_key(ur[1])))
+    return [" | ".join([lookup.tier_label(r), first_line(r["_name"]), r["_tab"]] + [rankings.UNTYPED_NOTE] * u)
+            for u, r in found[:3]]
 
 
 def recommend(items, grades, character, role="general", slot=None, element=None, type_=None, top=5) -> dict:
@@ -122,8 +131,8 @@ def recommend(items, grades, character, role="general", slot=None, element=None,
     worn = {w["slot"]: w for w in items if w.get("equipped") and w.get("location") == cls}
     equipped = [" | ".join([s, worn[s]["name"], worn[s]["type"], worn[s]["element"]]
                            + (["exotic"] if worn[s].get("rarity") == "Exotic" else [])) for s in SLOTS if s in worn]
-    selected = weapons.select(items, slot, element, type_)
-    warnings, not_owned = [], []
+    selected = [w for w in weapons.select(items, slot, element, type_) if not type_ or _type_ok(type_, w["type"])]
+    warnings, not_owned = [] if selected else ["no owned weapon matches the filters"], []
     if role == "dps":
         rows = lookup.rows("boss", "sustained")
         row_of = {w["itemId"]: dps_row(w, rows) for w in selected}
@@ -142,7 +151,7 @@ def recommend(items, grades, character, role="general", slot=None, element=None,
 
         ranked = sorted(((w, lookup.best(lookup.weapon_rows(w["name"]))) for w in _best_copies(selected, grades, cls)),
                         key=key)
-        label = lambda r: f"Aegis {lookup.tier_label(r) if r else '—'}"  # noqa: E731
+        label = lambda r: f"Aegis {lookup.tier_label(r)} ({r['_tab']})" if r else "Aegis —"  # noqa: E731
         if type_:
             not_owned = _not_owned(items, type_, element, key(ranked[0])[0] if ranked else UNRATED)
 
