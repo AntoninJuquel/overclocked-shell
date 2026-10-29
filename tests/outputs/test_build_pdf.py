@@ -70,6 +70,12 @@ def test_pipe_lines_without_separator_are_paragraphs():
 
 
 @pytest.mark.skipif(build_pdf.find_fonts() is None, reason="no Unicode TTF font on this machine")
-def test_unicode_font_maps_glyphs_it_lacks(caplog):
+def test_unicode_font_maps_glyphs_it_lacks(monkeypatch):
+    sent, multi_cell = [], build_pdf.FPDF.multi_cell
+
+    def spy(self, w, h, text, *args, **kwargs):
+        sent.append(text)
+        return multi_cell(self, w, h, text, *args, **kwargs)
+    monkeypatch.setattr(build_pdf.FPDF, "multi_cell", spy)
     build_pdf.render("Done ✓ · Rated ★")
-    assert "missing the following glyphs" not in caplog.text
+    assert sent and not any(c in t for t in sent for c in "✓★") and "v" in sent[0] and "*" in sent[0]

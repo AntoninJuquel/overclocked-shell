@@ -7,6 +7,9 @@ from urllib.parse import urljoin, urlsplit
 SKIP = {"script", "style", "nav", "aside", "form", "iframe", "svg", "noscript", "button"}
 HEADINGS = {"h1": "#", "h2": "##", "h3": "###", "h4": "####", "h5": "#####", "h6": "######"}
 BLOCKS = {"p", "div", "li", "figcaption", "tr", "blockquote", *HEADINGS}
+# flow tags that close an open <p> (HTML rule), so a later </p> closes nothing
+CLOSES_P = {"div", "blockquote", "ul", "ol", "table", "figure", "section", "nav", "aside", "form", "hr", "pre",
+            "p", *HEADINGS}
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
 ICON_SIZE = 64
 
@@ -26,6 +29,9 @@ class _Parser(HTMLParser):
         self.buf, self.prefix = [], ""
 
     def handle_starttag(self, tag, attrs):
+        inside = self.stack[self.skip or 0:]   # never close a <p> opened before a skipped element
+        if tag in CLOSES_P and "p" in inside:
+            del self.stack[len(self.stack) - 1 - self.stack[::-1].index("p"):]
         if tag not in VOID:
             self.stack.append(tag)
         if tag in SKIP and self.skip is None:
@@ -50,6 +56,7 @@ class _Parser(HTMLParser):
         def small(key):
             return (a.get(key) or "").isdigit() and int(a[key]) < ICON_SIZE
         first = (a.get("srcset") or a.get("data-srcset") or self.srcset or "").split(",")[0].split()  # "url 400w"
+        self.srcset = None   # one <source> per <img>, even in an unclosed <picture>
         src = a.get("data-src") or a.get("data-lazy-src") or a.get("src") or (first[0] if first else None)
         url = urljoin(self.base, src or "")
         # only web images: a file: or data: URL in a guide page must never be read
@@ -95,4 +102,5 @@ def to_markdown(article_html: str, base_url: str) -> tuple[str, list[tuple[str, 
     out = ""
     for i, b in enumerate(p.blocks):  # list items stay together, other blocks get a blank line
         out += ("" if i == 0 else "\n" if b.startswith("- ") and p.blocks[i - 1].startswith("- ") else "\n\n") + b
-    return out, [(url, alt.replace("]", "\\]")) for url, alt in p.images]   # alts go inside ![...]
+    # alts go inside ![...]: backslashes first, so an alt ending in "\" can't escape the "]"
+    return out, [(url, alt.replace("\\", "\\\\").replace("]", "\\]")) for url, alt in p.images]

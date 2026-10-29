@@ -99,3 +99,31 @@ def test_divs_and_small_headings_are_blocks():
 def test_alt_brackets_escaped():
     _, images = extract.to_markdown('<img src="/a.png" alt="Map [left]">', "https://x/")
     assert images == [("https://x/a.png", r"Map [left\]")]
+
+
+def test_nested_skips_and_void_tags_inside_a_skip():
+    md, images = extract.to_markdown('<nav><aside>x</aside>y</nav><p>Kept.</p>'
+                                     '<nav>a<br>b<img src="https://x/i.png">c</nav><p>Too.</p>', "https://x/")
+    assert md == "Kept.\n\nToo." and images == []
+
+
+def test_stray_close_inside_a_skip_does_not_end_it():
+    # a <nav> closes the open <p> (HTML rule), so the </p> inside the nav closes nothing
+    md, _ = extract.to_markdown("<p>Before<nav>menu</p>still menu</nav><p>Kept.</p>", "https://x/")
+    assert md == "Before\n\nKept."
+
+
+def test_list_item_paragraphs_keep_their_dash():
+    md, _ = extract.to_markdown("<ul><li><p>A</p></li><li><p>B</p></li></ul>", "https://x/")
+    assert md == "- A\n- B"
+
+
+def test_picture_srcset_used_once_even_unclosed():
+    _, images = extract.to_markdown('<picture><source srcset="https://x/a.png 400w"><img alt="A">'
+                                    '<p>text</p><img alt="none">', "https://x/")
+    assert images == [("https://x/a.png", "A")]
+
+
+def test_alt_backslashes_escaped_before_brackets():
+    _, images = extract.to_markdown(r'<img src="/a.png" alt="C:\dir\"><img src="/b.png" alt="a]b">', "https://x/")
+    assert [alt for _, alt in images] == [r"C:\\dir\\", r"a\]b"]
