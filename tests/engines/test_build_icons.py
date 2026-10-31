@@ -106,6 +106,14 @@ def test_set_perks_two_pieces_and_unknown_set():
     assert warnings == ["set not found: Nowhere"]
 
 
+def test_set_perks_follow_the_intent_not_the_resolved_sets():
+    s = copy.deepcopy(SHEET)
+    s["intent"]["sets"] = [{"set": "Great Hunt", "pieces": 2}]
+    s["resolved"] = {"sets": []}   # the inventory reached no set
+    perks, _ = build_icons.set_perks(s, SETS, PERKS)
+    assert [p["name"] for p in perks["Great Hunt"]] == ["Taken Barrier"]
+
+
 def test_set_perk_refs():
     out, _ = build_icons.refs(SHEET, fixture(), SOCKET_TYPES, STATS, ARMOR, WEAPONS, SETS, PERKS)
     assert out["setperk:Taken Barrier"] == "/icons/barrier.png"
