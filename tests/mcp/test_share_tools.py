@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 from urllib.parse import parse_qs, urlsplit
 
@@ -7,14 +8,30 @@ from mcp.server.mcpserver.exceptions import ToolError
 
 from shell.context import Context
 from shell.core import paths
+from shell.core.bungie import BungieApiError
+from shell.sources import icons
 from shell.mcp.server import build_server
 from tests.engines.builds.test_sheet import SHEET
 from tests.engines.test_share import ARMOR, DEFS, SOCKET_TYPES, WEAPONS
 
 
+PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5E"
+                       "rkJggg==")
+
+
+ICON_DEFS = {h: {**d, "displayProperties": {**d.get("displayProperties", {}), "icon": f"/common/{h}.png"}}
+             for h, d in DEFS.items()}
+
+
 class FakeManifest:
     def table(self, name, keep=True):
-        return {"DestinyInventoryItemDefinition": DEFS, "DestinySocketTypeDefinition": SOCKET_TYPES}[name]
+        return {"DestinyInventoryItemDefinition": ICON_DEFS, "DestinySocketTypeDefinition": SOCKET_TYPES,
+                "DestinyStatDefinition": {}}[name]
+
+
+class DownManifest:
+    def table(self, name, keep=True):
+        raise BungieApiError("down")
 
 
 @pytest.fixture
@@ -27,20 +44,91 @@ def root(tmp_path, monkeypatch):
     return tmp_path
 
 
-def call(name, args):
+def call(name, args, manifest=None):
     ctx = Context()
-    ctx.__dict__.update(manifest=FakeManifest())
+    ctx.__dict__.update(manifest=manifest or FakeManifest())
     result = asyncio.run(build_server(ctx).call_tool(name, args))
     return json.loads(result.content[0].text)
 
 
+@pytest.fixture(autouse=True)
+def png(monkeypatch):
+    monkeypatch.setattr(icons, "download", lambda url: PNG)
+
+
+def snapshots(root):
+    folder = root / "profile" / "inventory"
+    folder.mkdir(parents=True)
+    (folder / "armor.json").write_text(json.dumps(ARMOR), encoding="utf-8")
+    (folder / "weapons.json").write_text(json.dumps(WEAPONS), encoding="utf-8")
+
+
 def test_build_pdf(root):
+    snapshots(root)
     with pytest.raises(ToolError, match="unknown build: nope"):
         call("build_pdf", {"slug": "nope"})
     result = call("build_pdf", {"slug": "good"})
     pdf = root / "profile" / "builds" / "good.pdf"
     assert result["pdf"] == str(pdf) and pdf.read_bytes().startswith(b"%PDF")
     assert (root / "profile" / "builds" / "good.md").exists()
+    assert b"/Subtype /Image" in pdf.read_bytes()
+
+
+def test_build_pdf_without_snapshot_warns(root):
+    result = call("build_pdf", {"slug": "good"})
+    assert any("refresh_inventory" in w for w in result["warnings"])
+
+
+def failing(url):
+    raise OSError("no network")
+
+
+def test_build_pdf_offline_uses_index(root, monkeypatch):
+    snapshots(root)
+    call("build_pdf", {"slug": "good"})
+    monkeypatch.setattr(icons, "download", failing)
+    result = call("build_pdf", {"slug": "good"}, DownManifest())
+    assert any(w.startswith("Bungie unreachable") for w in result["warnings"])
+    assert b"/Subtype /Image" in (root / "profile" / "builds" / "good.pdf").read_bytes()
+
+
+def test_build_pdf_offline_never_cached(root, monkeypatch):
+    snapshots(root)
+    monkeypatch.setattr(icons, "download", failing)
+    result = call("build_pdf", {"slug": "good"}, DownManifest())
+    assert (root / "profile" / "builds" / "good.pdf").read_bytes().startswith(b"%PDF")
+    warnings = result["warnings"]
+    assert "Bungie unreachable: icons from the cache only" in warnings
+    (line,) = [w for w in warnings if "icons missing" in w]
+    count, names = line.split(" icons missing (placeholders): ")
+    assert int(count) > 3 and names.endswith("...") and len(names[:-3].split(", ")) == 3
+    assert not any(w.startswith("no icon:") for w in warnings)
+
+
+def test_build_pdf_missing_key_reported_once(root):
+    snapshots(root)
+    result = call("build_pdf", {"slug": "good"}, FakeManifest())
+    assert not any(w.startswith(("icon not found:", "no icon:")) for w in result["warnings"])
+
+
+def test_build_pdf_offline_ignores_deleted_cache_file(root, monkeypatch):
+    snapshots(root)
+    call("build_pdf", {"slug": "good"})
+    index = icons.indexed()
+    gone = next(iter(index))
+    (icons.folder() / index[gone].rsplit("/", 1)[-1]).unlink()
+    calls = []
+    monkeypatch.setattr(icons, "download", lambda url: calls.append(url) or failing(url))
+    result = call("build_pdf", {"slug": "good"}, DownManifest())
+    assert not calls and not any("download failed" in w for w in result["warnings"])
+
+
+def test_build_pdf_corrupt_snapshot(root):
+    snapshots(root)
+    (root / "profile" / "inventory" / "armor.json").write_text("{", encoding="utf-8")
+    result = call("build_pdf", {"slug": "good"})
+    assert (root / "profile" / "builds" / "good.pdf").read_bytes().startswith(b"%PDF")
+    assert any("armor snapshot" in w and "refresh_inventory" in w for w in result["warnings"])
 
 
 def test_build_dim_link(root):

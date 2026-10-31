@@ -1,81 +1,119 @@
-import json
-from pathlib import Path
+import base64
+import copy
+import re
 
 import pytest
 
-from shell.engines.builds import sheet
-from shell.outputs import build_md, build_pdf
+from shell.outputs import build_pdf
+from tests.engines.builds.test_sheet import SHEET
 
-EXAMPLE = Path(__file__).resolve().parents[2] / "examples" / "builds" / "example-warlock-prismatic-grenades.json"
-MD = """# Warlock Void — Contraverse
-
-Class: Warlock · Activity: Endgame général
-
-\\# not a heading: Grenade ≥ 150 — Super × 2
-
-## Result (2026-10-21)
-
-| Slot | Piece | Mods |
-|---|---|---|
-| Helmet | Hood \\| of the Great Hunt | Ashes to Assets |
-
-- Kinetic: DECATUR 02 (perks: Physic) — Aegis S #3
-
-_View generated from w.json_
-"""
+PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5E"
+                       "rkJggg==")  # 1×1 pixel
+RESOLVED = {
+    "date": "2026-10-21",
+    "armor": [{"slot": "Gauntlets", "itemId": "1", "name": "Getaway Artist", "stat_mod": "Grenade Mod",
+               "tuning": "Balanced Tuning", "mods": ["Firepower"]}],
+    "weapons": [{"slot": "Kinetic", "itemId": "9", "name": "DECATUR 02", "perks": ["Physic", "Master of Arms"],
+                 "mod": "Ballistics", "why": "Add clear."}],
+    "stats": {"Weapons": 100, "Grenade": 171},
+    "rationale": ["Feed the Void heals on grenade kills."],
+}
+KEYS = ["item:Getaway Artist", "item:DECATUR 02", "subclass:Stormcaller", "plug:Stormtrance", "plug:Storm Grenade",
+        "plug:Electrostatic Mind", "mod:Grenade Mod", "perk:Physic", "stat:Grenade"]
 
 
-def plain(md):
-    """PDF with the core font and uncompressed streams, so the text can be searched in the bytes."""
-    data, warnings = build_pdf.render(md, fonts=None, compress=False)
-    return data, warnings
+def resolved_sheet():
+    s = copy.deepcopy(SHEET)
+    s["subclass"]["aspects"] = ["Feed the Void", "Lightning Surge"]
+    s["resolved"] = copy.deepcopy(RESOLVED)
+    return s
 
 
-def test_fallback_font_renders_markdown_blocks():
-    data, warnings = plain(MD)
+@pytest.fixture
+def icons(tmp_path):
+    out = {}
+    for i, key in enumerate(KEYS):
+        out[key] = tmp_path / f"{i}.png"
+        out[key].write_bytes(PNG)
+    return out
+
+
+def plain(s, icons):
+    return build_pdf.render(s, icons, fonts=None, compress=False)
+
+
+def test_page_one_is_landscape_with_images(icons):
+    data, _ = plain(resolved_sheet(), icons)
+    assert data.startswith(b"%PDF") and b"/MediaBox [0 0 841.89 595.28]" in data
+    assert b"/Subtype /Image" in data and b"Warlock Arc grenades" in data
+
+
+def test_missing_icons_are_placeholders():
+    data, warnings = plain(resolved_sheet(), {})
     assert data.startswith(b"%PDF")
-    for text in (b"Warlock Void - Contraverse", rb"Result \(2026-10-21\)", b"Hood | of the Great Hunt",
-                 b"# not a heading: Grenade >= 150 - Super \xd7 2", b"Kinetic: DECATUR 02", b"Endgame g\xe9n\xe9ral"):
-        assert text in data, text
-    assert b"|---|" not in data and b"View generated" in data
-    assert warnings == ["no Unicode font found (Arial, DejaVu Sans): some symbols were simplified"]
+    assert "no icon: plug:Feed the Void" in warnings and len(warnings) == len(set(warnings))
 
 
-def test_example_sheet_renders():
-    md = build_md.render(sheet.validate(json.loads(EXAMPLE.read_text(encoding="utf-8"))), "example.json", [])
-    data, _ = plain(md)
-    assert b"Subclass" in data and b"Feed the Void" in data
+def test_bad_icon_file(tmp_path):
+    bad = tmp_path / "bad.png"
+    bad.write_bytes(b"<html>nope</html>")
+    data, warnings = plain(resolved_sheet(), {"plug:Feed the Void": bad})
+    assert data.startswith(b"%PDF") and "bad icon file: plug:Feed the Void" in warnings
+
+
+def test_bad_round_icon_leaves_no_clip_open(tmp_path):
+    bad = tmp_path / "bad.png"
+    bad.write_bytes(b"<html>nope</html>")
+    data, warnings = plain(resolved_sheet(), {"perk:Physic": bad})
+    assert "bad icon file: perk:Physic" in warnings
+    for page in re.findall(rb"stream\n(.*?)endstream", data, re.S):
+        assert len(re.findall(rb"(?<!\S)q(?!\S)", page)) == len(re.findall(rb"(?<!\S)Q(?!\S)", page))
+
+
+def test_long_text_overflows_to_page_two(icons):
+    s = resolved_sheet()
+    s["resolved"]["rationale"] = [f"{i:02} " + "grenade " * 25 for i in range(30)]  # 30 × 200 chars
+    data, _ = plain(s, icons)
+    assert b"/Count 2" in data and b"continued on page 2" in data
+
+
+def test_short_text_single_page(icons):
+    data, _ = plain(resolved_sheet(), icons)
+    assert b"/Count 1" in data
+
+
+NEEDS = [({"label": "Getaway Artist masterwork"}, {"stats": {"Grenade": 10}, "effects": ["+1 charge"]})]
+
+
+def test_needs_go_on_page_two_with_footer(icons):
+    data, _ = build_pdf.render(resolved_sheet(), icons, fonts=None, compress=False, needs=NEEDS, slug="good")
+    assert b"/Count 2" in data and b"TO FETCH" in data and b"Getaway Artist masterwork" in data
+    assert b"Generated by Overclocked Shell from good.json" in data and b"continued on page 2" not in data
+
+
+def test_intent_only_sheet(icons):
+    data, _ = plain(copy.deepcopy(SHEET), icons)
+    assert data.startswith(b"%PDF") and b"add clear" in data
+
+
+def test_fallback_font_simplifies_symbols(icons):
+    s = resolved_sheet()
+    s["name"] = "Warlock — Grenade ≥ 150"
+    data, warnings = plain(s, icons)
+    assert b"Warlock - Grenade >= 150" in data
+    assert "no Unicode font found (Arial, DejaVu Sans): some symbols were simplified" in warnings
 
 
 @pytest.mark.skipif(build_pdf.find_fonts() is None, reason="no Unicode TTF font on this machine")
-def test_unicode_font_keeps_symbols():
-    data, warnings = build_pdf.render(MD)
-    assert data.startswith(b"%PDF") and warnings == []
+def test_unicode_font_keeps_symbols(icons):
+    s = resolved_sheet()
+    s["concept"] = "Grenade ≥ 150 — Super × 2 ✓ ★"
+    data, warnings = build_pdf.render(s, icons)
+    assert data.startswith(b"%PDF") and not any(w.startswith("no Unicode") for w in warnings)
 
 
-def test_write(tmp_path):
+def test_write(tmp_path, icons):
     path = tmp_path / "builds" / "w.pdf"
-    build_pdf.write(path, MD)
+    build_pdf.write(path, resolved_sheet(), icons)
     assert path.read_bytes().startswith(b"%PDF")
-
-
-def test_escaped_bullets_and_indented_escapes_lose_their_backslash():
-    data, _ = plain("- \\-10 Weapons\n  \\# indented\n")
-    assert b"- -10 Weapons" in data and b"# indented" in data and b"\\\\" not in data
-
-
-def test_pipe_lines_without_separator_are_paragraphs():
-    data, _ = plain("| not a table |\n")
-    assert b"| not a table |" in data
-
-
-@pytest.mark.skipif(build_pdf.find_fonts() is None, reason="no Unicode TTF font on this machine")
-def test_unicode_font_maps_glyphs_it_lacks(monkeypatch):
-    sent, multi_cell = [], build_pdf.FPDF.multi_cell
-
-    def spy(self, w, h, text, *args, **kwargs):
-        sent.append(text)
-        return multi_cell(self, w, h, text, *args, **kwargs)
-    monkeypatch.setattr(build_pdf.FPDF, "multi_cell", spy)
-    build_pdf.render("Done ✓ · Rated ★")
-    assert sent and not any(c in t for t in sent for c in "✓★") and "v" in sent[0] and "*" in sent[0]
+    assert len(re.findall(rb"/Type /Page\b", path.read_bytes())) == 1
