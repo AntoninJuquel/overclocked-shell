@@ -97,7 +97,20 @@ def test_build_pdf_offline_never_cached(root, monkeypatch):
     monkeypatch.setattr(icons, "download", failing)
     result = call("build_pdf", {"slug": "good"}, DownManifest())
     assert (root / "profile" / "builds" / "good.pdf").read_bytes().startswith(b"%PDF")
-    assert len(result["warnings"]) <= 3
+    warnings = result["warnings"]
+    assert "Bungie unreachable: icons from the cache only" in warnings
+    (line,) = [w for w in warnings if "icons missing" in w]
+    count, names = line.split(" icons missing (placeholders): ")
+    assert int(count) > 3 and names.endswith("...") and len(names[:-3].split(", ")) == 3
+    assert not any(w.startswith("no icon:") for w in warnings)
+
+
+def test_build_pdf_corrupt_snapshot(root):
+    snapshots(root)
+    (root / "profile" / "inventory" / "armor.json").write_text("{", encoding="utf-8")
+    result = call("build_pdf", {"slug": "good"})
+    assert (root / "profile" / "builds" / "good.pdf").read_bytes().startswith(b"%PDF")
+    assert any("armor snapshot" in w and "refresh_inventory" in w for w in result["warnings"])
 
 
 def test_build_dim_link(root):

@@ -36,27 +36,28 @@ no Unicode font: symbols simplified)."""
         for kind in ("armor", "weapons"):
             try:
                 items[kind] = read_snapshot(kind)[0]
-            except FileNotFoundError:
+            except (FileNotFoundError, ValueError):   # absent, or corrupt / partial JSON
                 items[kind] = []
-        if not (items["armor"] or items["weapons"]):
-            warnings.append("no inventory snapshot: item icons by name (call refresh_inventory)")
+                warnings.append(f"no {kind} snapshot: item icons by name (call refresh_inventory)")
         try:
-            table = lambda name: ctx.manifest.table(name, keep=False)
-            refs, more = build_icons.refs(s, table("DestinyInventoryItemDefinition"),
-                                          table("DestinySocketTypeDefinition"), table("DestinyStatDefinition"),
-                                          items["armor"], items["weapons"])
-            warnings += more
-        except (BungieApiError, httpx.HTTPError, OSError):
+            tables = [ctx.manifest.table(name, keep=False) for name in (
+                "DestinyInventoryItemDefinition", "DestinySocketTypeDefinition", "DestinyStatDefinition")]
+        except (BungieApiError, httpx.HTTPError, OSError, ValueError):   # ValueError: corrupt cached table
+            tables = None
             refs = icons.indexed()
             warnings.append("Bungie unreachable: icons from the cache only")
+        if tables:
+            refs, more = build_icons.refs(s, *tables, items["armor"], items["weapons"])
+            warnings += more
         files, more = icons.local(refs)
-        missing = [w for w in more if w.startswith("no icon")]
-        warnings += [w for w in more if w not in missing]
+        warnings += more
         pdf = path.with_suffix(".pdf")
+        missing = []
         for w in pdf_out.write(pdf, s, files):
-            (missing if w.startswith("no icon") else warnings).append(w)
+            (missing if w.startswith("no icon:") else warnings).append(w)
         if missing:   # one line, not one per icon
-            warnings.append(f"{len(missing)} icons missing (placeholders): " + ", ".join(m.split(": ", 1)[-1] for m in missing[:3]) + ("..." if len(missing) > 3 else ""))
+            names = ", ".join(m.removeprefix("no icon: ") for m in missing[:3])
+            warnings.append(f"{len(missing)} icons missing (placeholders): {names}{'...' if len(missing) > 3 else ''}")
         return {"pdf": str(pdf), "warnings": warnings}
 
     @tool(mcp)
