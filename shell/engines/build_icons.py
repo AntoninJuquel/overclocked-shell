@@ -1,4 +1,5 @@
-"""Icon paths for what a build sheet names (items, subclass, plugs, mods, weapon perks, artifact, stats), reusing the
+"""Icon paths for what a build sheet names (items, subclass, plugs, mods, weapon perks, artifact, stats, set perks),
+reusing the
 DIM link's name resolution (`share`). Keys are "<kind>:<name>"; values are manifest paths
 ("/common/destiny2_content/icons/x.jpg")."""
 from shell.engines import share
@@ -19,10 +20,29 @@ def _index(defs, pred, key=lambda h, d: int(h)):
     return {n: d for n, (_, d) in best.items()}
 
 
+def set_perks(s: dict, set_defs: dict, perk_defs: dict) -> tuple[dict[str, list[dict]], list[str]]:
+    """({set: [{pieces, name, icon}]} of the perks the sheet's piece count activates, by piece count; warnings), for
+    `resolved.sets` or else `intent.sets`. `set_defs`: DestinyEquipableItemSetDefinition, `perk_defs`:
+    DestinySandboxPerkDefinition, both by hash string."""
+    by_name = {_name(d): d for d in set_defs.values() if _name(d)}
+    out, warnings = {}, []
+    for e in (s.get("resolved") or {}).get("sets") or s["intent"].get("sets") or []:
+        d = by_name.get(e["set"])
+        if d is None:
+            warnings.append(f"set not found: {e['set']}")
+            continue
+        out[e["set"]] = [{"pieces": p["requiredSetCount"], "name": _name(perk), "icon": _icon(perk)}
+                         for p in sorted(d.get("setPerks") or [], key=lambda p: p["requiredSetCount"])
+                         if p["requiredSetCount"] <= e["pieces"]
+                         for perk in [perk_defs.get(str(p["sandboxPerkHash"])) or {}] if _name(perk)]
+    return out, warnings
+
+
 def refs(s: dict, defs: dict, socket_types: dict, stat_defs: dict, armor_items: list[dict],
-         weapon_items: list[dict]) -> tuple[dict[str, str], list[str]]:
+         weapon_items: list[dict], set_defs: dict | None = None,
+         perk_defs: dict | None = None) -> tuple[dict[str, str], list[str]]:
     """({key: icon path}, warnings). `defs`: DestinyInventoryItemDefinition, `stat_defs`: DestinyStatDefinition,
-    both by hash string."""
+    both by hash string; set perks when `set_defs` and `perk_defs` are given (see `set_perks`)."""
     intent, res = s["intent"], s.get("resolved") or {}
     out, warnings = {}, []
 
@@ -77,4 +97,10 @@ def refs(s: dict, defs: dict, socket_types: dict, stat_defs: dict, armor_items: 
 
     for n, h in share.STAT_HASHES.items():
         add(f"stat:{n}", stat_defs.get(str(h)))
+
+    if set_defs is not None and perk_defs is not None:
+        perks, more = set_perks(s, set_defs, perk_defs)
+        warnings += more
+        for p in (p for ps in perks.values() for p in ps):
+            add(f"setperk:{p['name']}", {"displayProperties": {"icon": p["icon"]}})
     return out, warnings

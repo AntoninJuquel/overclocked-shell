@@ -117,3 +117,19 @@ def test_write(tmp_path, icons):
     build_pdf.write(path, resolved_sheet(), icons)
     assert path.read_bytes().startswith(b"%PDF")
     assert len(re.findall(rb"/Type /Page\b", path.read_bytes())) == 1
+
+
+SET_PERKS = {"AION Renewal": [{"pieces": 2, "name": "Taken Barrier", "icon": "/x.png"}]}
+
+
+def test_set_perk_lines_and_icons(icons, tmp_path):
+    icons["setperk:Taken Barrier"] = tmp_path / "set.png"
+    icons["setperk:Taken Barrier"].write_bytes(PNG)
+    data, warnings = build_pdf.render(resolved_sheet(), icons, fonts=None, compress=False, set_perks=SET_PERKS)
+    assert b"ARMOR SET BONUS" in data and b"2 Piece | Taken Barrier" in data
+    assert "no icon: setperk:Taken Barrier" not in warnings
+
+
+def test_set_perk_icon_missing_is_a_placeholder(icons):
+    _, warnings = build_pdf.render(resolved_sheet(), icons, fonts=None, compress=False, set_perks=SET_PERKS)
+    assert "no icon: setperk:Taken Barrier" in warnings

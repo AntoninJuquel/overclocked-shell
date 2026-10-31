@@ -23,10 +23,16 @@ ICON_DEFS = {h: {**d, "displayProperties": {**d.get("displayProperties", {}), "i
              for h, d in DEFS.items()}
 
 
+SETS = {"7": {"displayProperties": {"name": "AION Renewal"},
+              "setPerks": [{"requiredSetCount": 2, "sandboxPerkHash": 71}]}}
+SET_PERKS = {"71": {"displayProperties": {"name": "Renewal Grasp", "icon": "/common/71.png"}}}
+
+
 class FakeManifest:
     def table(self, name, keep=True):
         return {"DestinyInventoryItemDefinition": ICON_DEFS, "DestinySocketTypeDefinition": SOCKET_TYPES,
-                "DestinyStatDefinition": {}}[name]
+                "DestinyStatDefinition": {}, "DestinySandboxPerkDefinition": SET_PERKS,
+                "DestinyEquipableItemSetDefinition": SETS}[name]
 
 
 class DownManifest:
@@ -72,6 +78,7 @@ def test_build_pdf(root):
     assert result["pdf"] == str(pdf) and pdf.read_bytes().startswith(b"%PDF")
     assert (root / "profile" / "builds" / "good.md").exists()
     assert b"/Subtype /Image" in pdf.read_bytes()
+    assert icons.indexed()["setperk:Renewal Grasp"] == "/common/71.png"
 
 
 def test_build_pdf_without_snapshot_warns(root):

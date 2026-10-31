@@ -28,7 +28,7 @@ def register(mcp: MCPServer, ctx: Context) -> None:
     @tool(mcp)
     def build_pdf(slug: str) -> dict:
         """PDF of build sheet `slug` (profile/builds/<slug>.pdf), A4 landscape in the in-game layout (subclass,
-weapons, armor, artifact, stats, build text) with the manifest icons, cached in cache/icons/ (the first export
+weapons, armor, artifact, stats, build text, set bonus perks) with the manifest icons, cached in cache/icons/ (the first export
 downloads them; later ones work offline). The Markdown view is regenerated first. Reads the inventory snapshot
 (call refresh_inventory first). Returns pdf (path) and warnings (no snapshot, Bungie unreachable, missing icons,
 no Unicode font: symbols simplified)."""
@@ -43,19 +43,21 @@ no Unicode font: symbols simplified)."""
                 warnings.append(f"no {kind} snapshot: item icons by name (call refresh_inventory)")
         try:
             tables = [ctx.manifest.table(name, keep=False) for name in (
-                "DestinyInventoryItemDefinition", "DestinySocketTypeDefinition", "DestinyStatDefinition")]
+                "DestinyInventoryItemDefinition", "DestinySocketTypeDefinition", "DestinyStatDefinition",
+                "DestinyEquipableItemSetDefinition", "DestinySandboxPerkDefinition")]
         except (BungieApiError, httpx.HTTPError, OSError, ValueError):   # ValueError: corrupt cached table
-            tables = None
+            tables, set_perks = None, None   # shortcut: no set perk lines offline; cache them if players ask
             refs = {k: r for k, r in icons.indexed().items() if (icons.folder() / PurePosixPath(r).name).is_file()}
             warnings.append("Bungie unreachable: icons from the cache only")
         if tables:
-            refs, more = build_icons.refs(s, *tables, items["armor"], items["weapons"])
+            refs, more = build_icons.refs(s, *tables[:3], items["armor"], items["weapons"], *tables[3:])
+            set_perks = build_icons.set_perks(s, *tables[3:])[0]   # its warnings come with refs
             warnings += [w for w in more if not w.startswith(("icon not found:", "no icon:"))]  # reported collapsed
         files, more = icons.local(refs)
         warnings += more
         pdf = path.with_suffix(".pdf")
         missing = []
-        for w in pdf_out.write(pdf, s, files, sheet_mod.needs_for(slug)):
+        for w in pdf_out.write(pdf, s, files, sheet_mod.needs_for(slug), set_perks):
             (missing if w.startswith("no icon:") else warnings).append(w)
         if missing:   # one line, not one per icon
             names = ", ".join(m.removeprefix("no icon: ") for m in missing[:3])

@@ -83,3 +83,30 @@ def test_unknown_names_warn():
     s["subclass"]["fragments"] = ["Facet of Nothing"]
     out, warnings = run(s)
     assert "plug:Facet of Nothing" not in out and any("Facet of Nothing" in w for w in warnings)
+
+
+SETS = {"7": {"displayProperties": {"name": "Great Hunt"},
+              "setPerks": [{"requiredSetCount": 4, "sandboxPerkHash": 72}, {"requiredSetCount": 2, "sandboxPerkHash": 71}]}}
+PERKS = {"71": {"displayProperties": {"name": "Taken Barrier", "icon": "/icons/barrier.png"}},
+         "72": {"displayProperties": {"name": "Taken Armaments", "icon": "/icons/armaments.png"}}}
+
+
+def test_set_perks_by_piece_count():
+    perks, warnings = build_icons.set_perks(SHEET, SETS, PERKS)
+    assert perks == {"Great Hunt": [{"pieces": 2, "name": "Taken Barrier", "icon": "/icons/barrier.png"},
+                                    {"pieces": 4, "name": "Taken Armaments", "icon": "/icons/armaments.png"}]}
+    assert warnings == []
+
+
+def test_set_perks_two_pieces_and_unknown_set():
+    s = copy.deepcopy(SHEET)
+    s["intent"]["sets"] = [{"set": "Great Hunt", "pieces": 2}, {"set": "Nowhere", "pieces": 2}]
+    perks, warnings = build_icons.set_perks(s, SETS, PERKS)
+    assert [p["name"] for p in perks["Great Hunt"]] == ["Taken Barrier"]
+    assert warnings == ["set not found: Nowhere"]
+
+
+def test_set_perk_refs():
+    out, _ = build_icons.refs(SHEET, fixture(), SOCKET_TYPES, STATS, ARMOR, WEAPONS, SETS, PERKS)
+    assert out["setperk:Taken Barrier"] == "/icons/barrier.png"
+    assert out["setperk:Taken Armaments"] == "/icons/armaments.png"

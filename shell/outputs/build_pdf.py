@@ -2,8 +2,8 @@
 
 Top bar (name, class · activity); left: the subclass (emblem, super diamond, abilities, aspects, fragments), the
 weapons (perk circles and mod to the left of the icon, as in the inspect screen) and the artifact; middle (where the
-Guardian stands): concept, why it works, each weapon's why, the armor set bonus; right: the stats and the armor with
-its mods (tuning, stat mod, slot mods). Text that doesn't fit the middle continues on page 2.
+Guardian stands): concept, why it works, each weapon's why, the armor set bonus with its perks; right: the stats (the
+active set perk icons below) and the armor with its mods (tuning, stat mod, slot mods). Text that doesn't fit the middle continues on page 2.
 
 Pure: the icons come in as local files ({"<kind>:<name>": Path}); a missing or unreadable one is a dark placeholder
 with the name in it, plus a warning. Font: the first Unicode TTF found (Arial on Windows / macOS, DejaVu Sans on
@@ -72,9 +72,12 @@ class _Page(FPDF):
             self.rect(0, 0, self.w, self.h, "F")
 
 
-def render(s: dict, icons: dict[str, Path], fonts="auto", compress=True, needs=(), slug="build") -> tuple[bytes, list[str]]:
+def render(s: dict, icons: dict[str, Path], fonts="auto", compress=True, needs=(), slug="build",
+           set_perks=None) -> tuple[bytes, list[str]]:
     """(PDF bytes, warnings). icons: {"<kind>:<name>": local file}. fonts: "auto" (find_fonts), None (Helvetica) or
-    (regular, bold) paths. needs: [(need, gain)] from `sheet.needs_for`, shown as "TO FETCH" on page 2."""
+    (regular, bold) paths. needs: [(need, gain)] from `sheet.needs_for`, shown as "TO FETCH" on page 2. set_perks:
+    {set: [{pieces, name}]} from `build_icons.set_perks`."""
+    set_perks = set_perks or {}
     fonts = find_fonts() if fonts == "auto" else fonts
     pdf = _Page(orientation="L", format="A4")
     pdf.compress = compress
@@ -238,6 +241,10 @@ def render(s: dict, icons: dict[str, Path], fonts="auto", compress=True, needs=(
             text(216, top + 3 + i * 8, "-" if v is None else str(v), 9, "", WHITE, w=10, align="R")
             icon(f"stat:{k}", 227, top + 2.7 + i * 8, 4)
 
+    # active set perks under the stats column
+    for i, p in enumerate(p for ps in set_perks.values() for p in ps):
+        icon(f"setperk:{p['name']}", 220, 124 + i * 9.5, 8)
+
     # armor: one row per slot, item icon then tuning, stat mod, slot mods
     rows = {a["slot"]: a for a in res.get("armor") or []} if res else {}
     pitch = (200 - 18) / len(SLOTS)
@@ -262,7 +269,7 @@ def render(s: dict, icons: dict[str, Path], fonts="auto", compress=True, needs=(
         icon(f"item:{intent['exotic']['name']}", 216.5, 89, 15, bg="#000000")
         frame(216.5, 89, 15, GOLD, 1)
 
-    _middle(pdf, s, font, clean, bullet, needs)
+    _middle(pdf, s, font, clean, bullet, needs, set_perks)
     pdf.set_auto_page_break(False)  # footer on the last page, below the break margin
     font(6, "", SOFT)
     pdf.set_xy(6, 203)
@@ -270,7 +277,7 @@ def render(s: dict, icons: dict[str, Path], fonts="auto", compress=True, needs=(
     return bytes(pdf.output()), warnings
 
 
-def _middle(pdf, s, font, clean, bullet, needs=()):
+def _middle(pdf, s, font, clean, bullet, needs=(), set_perks={}):
     """Concept, WHY IT WORKS, WEAPONS, set box in the middle at 8 / 7.5 / 7 pt; the rest on page 2."""
     res, intent = s.get("resolved") or {}, s["intent"]
     blocks = []  # (kind, text): box (concept), h (heading), li, wli (markdown), set
@@ -283,7 +290,9 @@ def _middle(pdf, s, font, clean, bullet, needs=()):
         blocks += [("h", "WEAPONS"), *(("wli", f"**{_escape(w['name'])}**: {_escape(w['why'])}") for w in whys)]
     sets = res.get("sets") or intent.get("sets") or []
     if sets:
-        blocks.append(("set", "\n".join(f"ARMOR SET BONUS · {e['set'].upper()} ×{e['pieces']}" for e in sets)))
+        blocks.append(("set", "\n".join(line for e in sets for line in (
+            f"ARMOR SET BONUS · {e['set'].upper()} ×{e['pieces']}",
+            *(f"{p['pieces']} Piece | {p['name']}" for p in set_perks.get(e["set"]) or [])))))
 
     tail = []  # page 2 only: after any overflow
     if needs:
@@ -341,9 +350,9 @@ def _middle(pdf, s, font, clean, bullet, needs=()):
             draw(k, t, 15, pdf.w - 30, 8)
 
 
-def write(path: Path, s: dict, icons: dict[str, Path], needs=()) -> list[str]:
+def write(path: Path, s: dict, icons: dict[str, Path], needs=(), set_perks=None) -> list[str]:
     """Writes the PDF; returns the warnings."""
-    data, warnings = render(s, icons, needs=needs, slug=path.stem)
+    data, warnings = render(s, icons, needs=needs, slug=path.stem, set_perks=set_perks)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
     return warnings
