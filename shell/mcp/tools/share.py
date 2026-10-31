@@ -1,4 +1,6 @@
 """Share a build sheet: a PDF of its view, a DIM loadout link. Read-only for the account."""
+from pathlib import PurePosixPath
+
 import httpx
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -44,16 +46,16 @@ no Unicode font: symbols simplified)."""
                 "DestinyInventoryItemDefinition", "DestinySocketTypeDefinition", "DestinyStatDefinition")]
         except (BungieApiError, httpx.HTTPError, OSError, ValueError):   # ValueError: corrupt cached table
             tables = None
-            refs = icons.indexed()
+            refs = {k: r for k, r in icons.indexed().items() if (icons.folder() / PurePosixPath(r).name).is_file()}
             warnings.append("Bungie unreachable: icons from the cache only")
         if tables:
             refs, more = build_icons.refs(s, *tables, items["armor"], items["weapons"])
-            warnings += more
+            warnings += [w for w in more if not w.startswith(("icon not found:", "no icon:"))]  # reported collapsed
         files, more = icons.local(refs)
         warnings += more
         pdf = path.with_suffix(".pdf")
         missing = []
-        for w in pdf_out.write(pdf, s, files):
+        for w in pdf_out.write(pdf, s, files, sheet_mod.needs_for(slug)):
             (missing if w.startswith("no icon:") else warnings).append(w)
         if missing:   # one line, not one per icon
             names = ", ".join(m.removeprefix("no icon: ") for m in missing[:3])

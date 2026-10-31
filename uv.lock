@@ -489,7 +489,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "cryptography", specifier = ">=43" },
-    { name = "fpdf2", specifier = ">=2.8" },
+    { name = "fpdf2", specifier = ">=2.8,<2.9" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "mcp", specifier = ">=2.3" },
     { name = "python-dotenv", specifier = ">=1.0" },

@@ -105,6 +105,24 @@ def test_build_pdf_offline_never_cached(root, monkeypatch):
     assert not any(w.startswith("no icon:") for w in warnings)
 
 
+def test_build_pdf_missing_key_reported_once(root):
+    snapshots(root)
+    result = call("build_pdf", {"slug": "good"}, FakeManifest())
+    assert not any(w.startswith(("icon not found:", "no icon:")) for w in result["warnings"])
+
+
+def test_build_pdf_offline_ignores_deleted_cache_file(root, monkeypatch):
+    snapshots(root)
+    call("build_pdf", {"slug": "good"})
+    index = icons.indexed()
+    gone = next(iter(index))
+    (icons.folder() / index[gone].rsplit("/", 1)[-1]).unlink()
+    calls = []
+    monkeypatch.setattr(icons, "download", lambda url: calls.append(url) or failing(url))
+    result = call("build_pdf", {"slug": "good"}, DownManifest())
+    assert not calls and not any("download failed" in w for w in result["warnings"])
+
+
 def test_build_pdf_corrupt_snapshot(root):
     snapshots(root)
     (root / "profile" / "inventory" / "armor.json").write_text("{", encoding="utf-8")
