@@ -9,7 +9,8 @@ Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md
 
 Conversation: **one question at a time**, with 2–3 argued options when possible. Every mechanic or value comes
 from the Compendium (`compendium` skill), quoted with its date; if an entry is missing, say so rather than
-invent. Names in English, as in game (fragments too: "Spark of Shock").
+invent. In the sheet, names in English as the tools give them (fragments too: "Spark of Shock"); to the player,
+in their game language via `game_terms(names)` (see the Ghost voice).
 
 **Two phases, never mixed:**
 - **Intent (steps 1–6): the best build in theory.** Only game data (Compendium), Aegis's ratings (`aegis` skill:

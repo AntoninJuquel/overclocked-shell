@@ -21,6 +21,7 @@ class Settings:
     client_id: str
     client_secret: str
     redirect_url: str
+    language: str = "en"  # Bungie manifest language for names shown to the player (en, fr, de, es, es-mx, it, ja, ko, pl, pt-br, ru, zh-chs, zh-cht)
 
 
 def load_settings(env_file: Path | None = None) -> Settings:
@@ -34,4 +35,5 @@ def load_settings(env_file: Path | None = None) -> Settings:
         client_id=values["BUNGIE_CLIENT_ID"],
         client_secret=values["BUNGIE_CLIENT_SECRET"],
         redirect_url=values.get("BUNGIE_REDIRECT_URL") or DEFAULT_REDIRECT,
+        language=(values.get("SHELL_LANGUAGE") or "en").strip().lower(),
     )

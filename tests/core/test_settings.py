@@ -2,7 +2,7 @@ import pytest
 
 from shell.core.settings import SettingsError, load_settings
 
-VARS = ("BUNGIE_API_KEY", "BUNGIE_CLIENT_ID", "BUNGIE_CLIENT_SECRET", "BUNGIE_REDIRECT_URL")
+VARS = ("BUNGIE_API_KEY", "BUNGIE_CLIENT_ID", "BUNGIE_CLIENT_SECRET", "BUNGIE_REDIRECT_URL", "SHELL_LANGUAGE")
 
 
 @pytest.fixture(autouse=True)
@@ -17,6 +17,13 @@ def test_loads_from_file(tmp_path):
     s = load_settings(env)
     assert (s.api_key, s.client_id, s.client_secret) == ("k", "1", "s")
     assert s.redirect_url == "https://localhost:7777/callback"
+    assert s.language == "en"
+
+
+def test_language_from_file(tmp_path):
+    env = tmp_path / ".env"
+    env.write_text("BUNGIE_API_KEY=k\nBUNGIE_CLIENT_ID=1\nBUNGIE_CLIENT_SECRET=s\nSHELL_LANGUAGE= FR \n")
+    assert load_settings(env).language == "fr"
 
 
 def test_environment_wins_over_file(tmp_path, monkeypatch):

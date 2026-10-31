@@ -33,8 +33,8 @@ def _weapon_line(w):
     return text + (f" — {_oneline(w['why'])}" if w.get("why") else "")
 
 
-def render(s, source="the JSON sheet", needs=()):
-    """`needs`: [(need, gain)] from `sheet.needs_for`."""
+def render(s, source="the JSON sheet", needs=(), tr=None):
+    """`needs`: [(need, gain)] from `sheet.needs_for`. tr: str → str in the player's language (`lexicon.translator`)."""
     sub, intent = s["subclass"], s["intent"]
     st = intent.get("stats", {})
     lines = [f"# {_oneline(s['name'])}", "",
@@ -92,4 +92,4 @@ def render(s, source="the JSON sheet", needs=()):
             detail = "; ".join(_oneline(x) for x in parts if x)
             lines.append(f"- {_escape(_oneline(n['label']))}" + (f" — {detail}" if detail else ""))
     lines += ["", f"_View generated from {source}: do not edit by hand; edit the JSON, then run check_build._", ""]
-    return "\n".join(lines)
+    return (tr or (lambda t: t))("\n".join(lines))

@@ -7,7 +7,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 
 from shell.context import Context
 from shell.core.bungie import BungieApiError
-from shell.engines import build_icons, share
+from shell.engines import build_icons, lexicon, share
 from shell.engines.builds.snapshot import read_snapshot
 from shell.engines.builds import sheet as sheet_mod
 from shell.mcp import tool
@@ -33,8 +33,14 @@ downloads them; later ones work offline). The Markdown view is regenerated first
 (call refresh_inventory first). Returns pdf (path) and warnings (no snapshot, Bungie unreachable, missing icons,
 no Unicode font: symbols simplified)."""
         path, s = _load(slug)
+        try:
+            ctx.lexicon   # the player's language for the .md and the PDF
+        except (BungieApiError, httpx.HTTPError, OSError, ValueError) as e:
+            warnings_lexicon = [f"names stay in the last cached language ({e})"]
+        else:
+            warnings_lexicon = []
         sheet_mod.save(path, s)   # regenerates the .md view
-        warnings, items = [], {}
+        warnings, items = warnings_lexicon, {}
         for kind in ("armor", "weapons"):
             try:
                 items[kind] = read_snapshot(kind)[0]
@@ -57,7 +63,7 @@ no Unicode font: symbols simplified)."""
         warnings += more
         pdf = path.with_suffix(".pdf")
         missing = []
-        for w in pdf_out.write(pdf, s, files, sheet_mod.needs_for(slug), set_perks):
+        for w in pdf_out.write(pdf, s, files, sheet_mod.needs_for(slug), set_perks, lexicon.current()):
             (missing if w.startswith("no icon:") else warnings).append(w)
         if missing:   # one line, not one per icon
             names = ", ".join(m.removeprefix("no icon: ") for m in missing[:3])
