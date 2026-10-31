@@ -9,12 +9,18 @@ SETTINGS = Settings("k", "1", "s", "https://localhost:7777/callback")
 TABLE_PATH = "/common/destiny2_content/json/en/DestinyClassDefinition-v1.json"
 
 
+FR_PATH = TABLE_PATH.replace("/en/", "/fr/")
+
+
 def server(version, table_calls, fail_table=False, table_responses=None):
     def handler(request):
         if request.url.path == "/Platform/Destiny2/Manifest/":
             return httpx.Response(200, json={"ErrorCode": 1, "Response": {
                 "version": version,
-                "jsonWorldComponentContentPaths": {"en": {"DestinyClassDefinition": TABLE_PATH}}}})
+                "jsonWorldComponentContentPaths": {"en": {"DestinyClassDefinition": TABLE_PATH},
+                                                   "fr": {"DestinyClassDefinition": FR_PATH}}}})
+        if request.url.path == FR_PATH:
+            return httpx.Response(200, json={"1": {"displayProperties": {"name": "Arcaniste"}}})
         assert request.url.path == TABLE_PATH
         table_calls.append(version)
         if fail_table:
@@ -68,3 +74,16 @@ def test_table_keep_false_not_memoized(tmp_path):
     assert m._tables == {}
     m.table("DestinyClassDefinition")
     assert "DestinyClassDefinition" in m._tables
+
+
+def test_language_has_its_own_folder(tmp_path):
+    Manifest(server("v1", []), tmp_path).table("DestinyClassDefinition")
+    fr = Manifest(server("v2", []), tmp_path, lang="fr").table("DestinyClassDefinition")
+    assert fr["1"]["displayProperties"]["name"] == "Arcaniste"
+    assert (tmp_path / "manifest" / "v1" / "DestinyClassDefinition.json").exists()   # other language kept
+    assert (tmp_path / "manifest-fr" / "v2" / "DestinyClassDefinition.json").exists()
+
+
+def test_unknown_language_is_named(tmp_path):
+    with pytest.raises(ValueError, match="unknown manifest language 'xx'"):
+        Manifest(server("v1", []), tmp_path, lang="xx").table("DestinyClassDefinition")

@@ -9,6 +9,7 @@ from shell.core import paths
 from shell.engines.builds.rules import (ARTIFACT_SOCKET_COLUMNS, MAX_EXOTIC_WEAPONS, SLOT_AMMO, SLOT_ELEMENTS,
                                         UTILITY_SOCKETS, WEAPON_ELEMENTS, WEAPON_SLOTS, element_fits)
 from shell.engines.builds.stats import CAP, CLASSES, ELEMENTS, SLOTS, STATS
+from shell.engines import lexicon
 from shell.outputs import build_md
 
 
@@ -235,7 +236,7 @@ def save(path, s, needs_dir: Path | None = None):
     validate(s)
     path = Path(path)
     js = json.dumps(s, indent=2, ensure_ascii=False) + "\n"
-    md = build_md.render(s, path.name, needs_for(path.stem, needs_dir))
+    md = build_md.render(s, path.name, needs_for(path.stem, needs_dir), lexicon.current())
     path.parent.mkdir(parents=True, exist_ok=True)
     _atomic_write(path, js)
     _atomic_write(path.with_suffix(".md"), md)

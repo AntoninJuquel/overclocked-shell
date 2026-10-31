@@ -53,6 +53,7 @@ valid. Problems are prefixed "sheet…", "subclass: …" or "artifact: …"; ok 
         if slug not in existing:
             raise ToolError(f"Unknown build: {slug}. Existing: {', '.join(existing) or 'none'}")
         path = sheet.path_for(slug)
+        ctx.lexicon   # the .md view in the player's language
         try:
             s = sheet.load(path)
         except sheet.SheetError as e:

@@ -7,6 +7,7 @@ from shell.core.auth import OAuth
 from shell.core.bungie import BungieClient
 from shell.core.manifest import Manifest
 from shell.core.settings import Settings, load_settings
+from shell.engines import lexicon as lexicon_mod
 from shell.engines.defs import load_defs
 
 
@@ -34,3 +35,9 @@ class Context:
     def defs(self) -> dict:
         with self._lock:  # parallel tool calls must not build the index (and download tables) twice
             return self.__dict__.get("defs") or load_defs(self.manifest)
+
+    @cached_property
+    def lexicon(self) -> dict[str, str]:
+        """{English name: name in settings.language}; also refreshes cache/lexicon.json, which sheet.save reads."""
+        with self._lock:  # building it downloads the language's tables once per manifest version
+            return self.__dict__.get("lexicon") or lexicon_mod.load(self.manifest, self.settings.language)

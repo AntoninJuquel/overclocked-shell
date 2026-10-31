@@ -60,5 +60,6 @@ roles): never change it here without their OK. `resolved` is the last dated resu
    `check_build(slug)` validates and regenerates it.
 7. Nothing is equipped here: offer the `equip-build` skill.
 
-Reminders: names (mods, aspects, fragments, weapons) stay in English; never dismantle; quote the Compendium for
+Reminders: names (mods, aspects, fragments, weapons) stay in English in the sheet, in the player's game language
+(`game_terms`) when you speak; never dismantle; quote the Compendium for
 every mechanic invoked.

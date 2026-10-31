@@ -1,4 +1,5 @@
-"""Manifest definition tables, downloaded once per manifest version into cache/manifest/<version>/."""
+"""Manifest definition tables, downloaded once per manifest version into cache/manifest/<version>/ (English) or
+cache/manifest-<lang>/<version>/ (another language)."""
 import json
 import os
 import shutil
@@ -9,9 +10,10 @@ from shell.core.bungie import BASE, BungieClient
 
 
 class Manifest:
-    def __init__(self, client: BungieClient, cache_dir: Path | None = None):
+    def __init__(self, client: BungieClient, cache_dir: Path | None = None, lang: str = "en"):
         self.client = client
-        self.root = (cache_dir or paths.cache_dir()) / "manifest"
+        self.lang = lang
+        self.root = (cache_dir or paths.cache_dir()) / ("manifest" if lang == "en" else f"manifest-{lang}")
         self._index: dict | None = None
         self._tables: dict[str, dict] = {}
 
@@ -34,7 +36,10 @@ class Manifest:
         return self._index
 
     def _download(self, name: str, file: Path) -> dict:
-        table = self.client.download(BASE + self._load_index()["jsonWorldComponentContentPaths"]["en"][name])
+        langs = self._load_index()["jsonWorldComponentContentPaths"]
+        if self.lang not in langs:
+            raise ValueError(f"unknown manifest language {self.lang!r}: one of {', '.join(sorted(langs))}")
+        table = self.client.download(BASE + langs[self.lang][name])
         file.parent.mkdir(parents=True, exist_ok=True)
         tmp = file.with_suffix(".tmp")
         tmp.write_text(json.dumps(table), encoding="utf-8")
