@@ -288,7 +288,7 @@ def _middle(pdf, s, font, clean, bullet, needs=(), set_perks={}):
     whys = [w for w in res.get("weapons") or [] if w.get("why")]
     if whys:
         blocks += [("h", "WEAPONS"), *(("wli", f"**{_escape(w['name'])}**: {_escape(w['why'])}") for w in whys)]
-    sets = res.get("sets") or intent.get("sets") or []
+    sets = intent.get("sets") or []   # the PDF shows the build as designed, not what the inventory reached
     if sets:
         blocks.append(("set", "\n".join(line for e in sets for line in (
             f"ARMOR SET BONUS · {e['set'].upper()} ×{e['pieces']}",

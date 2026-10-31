@@ -22,11 +22,11 @@ def _index(defs, pred, key=lambda h, d: int(h)):
 
 def set_perks(s: dict, set_defs: dict, perk_defs: dict) -> tuple[dict[str, list[dict]], list[str]]:
     """({set: [{pieces, name, icon}]} of the perks the sheet's piece count activates, by piece count; warnings), for
-    `resolved.sets` or else `intent.sets`. `set_defs`: DestinyEquipableItemSetDefinition, `perk_defs`:
+    `intent.sets` (the build as designed). `set_defs`: DestinyEquipableItemSetDefinition, `perk_defs`:
     DestinySandboxPerkDefinition, both by hash string."""
     by_name = {_name(d): d for d in set_defs.values() if _name(d)}
     out, warnings = {}, []
-    for e in (s.get("resolved") or {}).get("sets") or s["intent"].get("sets") or []:
+    for e in s["intent"].get("sets") or []:
         d = by_name.get(e["set"])
         if d is None:
             warnings.append(f"set not found: {e['set']}")
