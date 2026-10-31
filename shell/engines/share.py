@@ -38,7 +38,7 @@ def _copy_key(h, d):
     return d.get("collectibleHash") is None, "Deprecated" in (d.get("itemTypeDisplayName") or ""), int(h)
 
 
-def _mod_index(defs):
+def mod_index(defs):
     """{name: hash} of armor mods, one copy per name (`_copy_key`)."""
     best = {}
     for h, d in defs.items():
@@ -50,7 +50,7 @@ def _mod_index(defs):
     return {n: h for n, (_, h) in best.items()}
 
 
-def _subclass(s, defs, socket_types, unknown, warnings):
+def subclass_item(s, defs, socket_types, unknown, warnings):
     """{hash, socketOverrides} of the sheet's subclass item, or None when the manifest has no such item.
     A socket's categories come from its socket type's whitelist (a Void grenade socket has no initial plug,
     Stasis aspect sockets start on a shared empty plug), else from its initial plug."""
@@ -122,7 +122,7 @@ def loadout(s, armor_items, weapon_items, defs, socket_types) -> tuple[dict, lis
             warnings.append(f"{e['slot']}: {e['name']} ({e['itemId']}) not in the inventory: left out")
         else:
             equipped.append({"id": e["itemId"], "hash": item["itemHash"]})
-    sub = _subclass(s, defs, socket_types, unknown, warnings)
+    sub = subclass_item(s, defs, socket_types, unknown, warnings)
     if sub:
         equipped.append(sub)
 
@@ -130,7 +130,7 @@ def loadout(s, armor_items, weapon_items, defs, socket_types) -> tuple[dict, lis
         names = [n for a in res["armor"] for n in [a.get("stat_mod"), a.get("tuning"), *(a.get("mods") or [])] if n]
     else:
         names = [n for slot_mods in (intent.get("armor_mods") or {}).values() for n in slot_mods]
-    index, mods = _mod_index(defs), []
+    index, mods = mod_index(defs), []
     for n in names:
         if n in index:
             mods.append(index[n])

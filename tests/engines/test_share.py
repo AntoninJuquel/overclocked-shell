@@ -118,7 +118,7 @@ def test_unknown_subclass_plug_warns_and_notes_keep_it_first():
 def test_mod_without_collectible_prefers_a_non_deprecated_copy():
     defs = {"30": plug("Old Mod", "enhancements.v2_head", coll=None, type_name="Deprecated Armor Mod"),
             "31": plug("Old Mod", "enhancements.v2_head", coll=None)}
-    assert share._mod_index(defs) == {"Old Mod": 31}
+    assert share.mod_index(defs) == {"Old Mod": 31}
 
 
 def test_exotic_fallback_takes_the_collectible_copy_of_the_sheet_class():
