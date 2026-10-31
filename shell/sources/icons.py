@@ -25,11 +25,12 @@ def download(url: str) -> bytes:
 
 
 def indexed() -> dict[str, str]:
-    """The refs resolved so far ({} when the index is absent or unreadable)."""
+    """The refs resolved so far ({} when the index is absent, unreadable or not a mapping)."""
     try:
-        return json.loads((folder() / "index.json").read_text(encoding="utf-8"))
+        index = json.loads((folder() / "index.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
+    return index if isinstance(index, dict) else {}
 
 
 def _valid(file: Path) -> bool:
@@ -41,19 +42,23 @@ def _valid(file: Path) -> bool:
 
 
 def local(refs: dict[str, str], download=None) -> tuple[dict[str, Path], list[str]]:
-    """{key: local file} for the refs, downloading what is missing; (files, warnings)."""
+    """{key: local file} for the refs, downloading what is missing; (files, warnings). Never raises."""
     download = download or globals()["download"]
-    folder().mkdir(parents=True, exist_ok=True)
+    try:
+        folder().mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        return {}, [f"icon cache not writable: {e.strerror or e}"]
     lock, failures = threading.Lock(), [0]
+    by_name = {PurePosixPath(ref).name: ref for ref in refs.values()}  # one download per file
 
     def fetch(item):
-        key, ref = item
-        file = folder() / PurePosixPath(ref).name
+        name, ref = item
+        file = folder() / name
         if _valid(file):
-            return key, file, "ok"
+            return name, file, "ok"
         with lock:
             if failures[0] >= MAX_FAILURES:
-                return key, None, "skipped"
+                return name, None, "skipped"
         try:
             data = download(BASE + ref)
             if not data.startswith(_SIGNATURES):
@@ -61,22 +66,24 @@ def local(refs: dict[str, str], download=None) -> tuple[dict[str, Path], list[st
             tmp = file.with_name(file.name + ".tmp")
             tmp.write_bytes(data)
             os.replace(tmp, file)
-            return key, file, "ok"
+            return name, file, "ok"
         except Exception:
             with lock:
                 failures[0] += 1
-            return key, None, "failed"
+            return name, None, "failed"
 
     with ThreadPoolExecutor(8) as pool:
-        results = list(pool.map(fetch, refs.items()))
-    files = {k: f for k, f, s in results if s == "ok"}
-    warnings = [f"icon download failed: {k}" for k, _, s in results if s == "failed"]
-    skipped = sum(s == "skipped" for _, _, s in results)
-    if skipped:
+        results = {n: (f, s) for n, f, s in pool.map(fetch, by_name.items())}
+    status = {k: results[PurePosixPath(r).name] for k, r in refs.items()}
+    files = {k: f for k, (f, s) in status.items() if s == "ok"}
+    warnings = [f"icon download failed: {k}" for k, (_, s) in status.items() if s == "failed"]
+    if any(s == "skipped" for _, s in status.values()):
         warnings.append(f"icons: Bungie unreachable, {len(refs) - len(files)} icons missing")
     if files:
-        index = indexed() | {k: refs[k] for k in files}
-        tmp = folder() / "index.json.tmp"
-        tmp.write_text(json.dumps(index, indent=1), encoding="utf-8")
-        os.replace(tmp, folder() / "index.json")
+        try:
+            tmp = folder() / "index.json.tmp"
+            tmp.write_text(json.dumps(indexed() | {k: refs[k] for k in files}, indent=1), encoding="utf-8")
+            os.replace(tmp, folder() / "index.json")
+        except OSError as e:
+            warnings.append(f"icon cache not writable: {e.strerror or e}")
     return files, warnings

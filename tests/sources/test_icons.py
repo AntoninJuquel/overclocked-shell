@@ -70,3 +70,22 @@ def test_invalid_file_redownloaded(monkeypatch, tmp_path):
     dl = _counting()
     got, _ = icons.local({"perk:a": REFS["perk:a"]}, download=dl)
     assert len(dl.calls) == 1 and got["perk:a"].read_bytes() == PNG
+
+
+def test_shared_ref_downloaded_once(monkeypatch, tmp_path):
+    _setup(monkeypatch, tmp_path)
+    dl = _counting()
+    refs = {"mod:x": "/i/same.png", "perk:y": "/i/same.png"}
+    got, warnings = icons.local(refs, download=dl)
+    assert len(dl.calls) == 1 and warnings == []
+    assert got["mod:x"] == got["perk:y"] and got["mod:x"].exists()
+
+
+def test_non_dict_index_is_ignored(monkeypatch, tmp_path):
+    _setup(monkeypatch, tmp_path)
+    (tmp_path / "icons").mkdir()
+    (tmp_path / "icons" / "index.json").write_text("[]")
+    assert icons.indexed() == {}
+    got, warnings = icons.local(REFS, download=_counting())
+    assert set(got) == set(REFS) and warnings == []
+    assert icons.indexed() == REFS
