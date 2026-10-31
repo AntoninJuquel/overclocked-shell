@@ -1,13 +1,17 @@
 """Share a build sheet: a PDF of its view, a DIM loadout link. Read-only for the account."""
+import httpx
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
 from shell.context import Context
-from shell.engines import share
+from shell.core.bungie import BungieApiError
+from shell.engines import build_icons, share
+from shell.engines.builds.snapshot import read_snapshot
 from shell.engines.builds import sheet as sheet_mod
 from shell.mcp import tool
 from shell.mcp.tools.builds import sheet_path, snapshot
 from shell.outputs import build_pdf as pdf_out, dim_link
+from shell.sources import icons
 
 
 def _load(slug):
@@ -21,12 +25,38 @@ def _load(slug):
 def register(mcp: MCPServer, ctx: Context) -> None:
     @tool(mcp)
     def build_pdf(slug: str) -> dict:
-        """PDF of build sheet `slug` (profile/builds/<slug>.pdf): its Markdown view, regenerated first, printed.
-Returns pdf (path) and warnings (e.g. no Unicode font: symbols simplified)."""
+        """PDF of build sheet `slug` (profile/builds/<slug>.pdf), A4 landscape in the in-game layout (subclass,
+weapons, armor, artifact, stats, build text) with the manifest icons, cached in cache/icons/ (the first export
+downloads them; later ones work offline). The Markdown view is regenerated first. Reads the inventory snapshot
+(call refresh_inventory first). Returns pdf (path) and warnings (no snapshot, Bungie unreachable, missing icons,
+no Unicode font: symbols simplified)."""
         path, s = _load(slug)
         sheet_mod.save(path, s)   # regenerates the .md view
+        warnings, items = [], {}
+        for kind in ("armor", "weapons"):
+            try:
+                items[kind] = read_snapshot(kind)[0]
+            except FileNotFoundError:
+                items[kind] = []
+        if not (items["armor"] or items["weapons"]):
+            warnings.append("no inventory snapshot: item icons by name (call refresh_inventory)")
+        try:
+            table = lambda name: ctx.manifest.table(name, keep=False)
+            refs, more = build_icons.refs(s, table("DestinyInventoryItemDefinition"),
+                                          table("DestinySocketTypeDefinition"), table("DestinyStatDefinition"),
+                                          items["armor"], items["weapons"])
+            warnings += more
+        except (BungieApiError, httpx.HTTPError, OSError):
+            refs = icons.indexed()
+            warnings.append("Bungie unreachable: icons from the cache only")
+        files, more = icons.local(refs)
+        missing = [w for w in more if w.startswith("no icon")]
+        warnings += [w for w in more if w not in missing]
         pdf = path.with_suffix(".pdf")
-        warnings = pdf_out.write(pdf, s, {})  # icons wired by S-026 task 4
+        for w in pdf_out.write(pdf, s, files):
+            (missing if w.startswith("no icon") else warnings).append(w)
+        if missing:   # one line, not one per icon
+            warnings.append(f"{len(missing)} icons missing (placeholders): " + ", ".join(m.split(": ", 1)[-1] for m in missing[:3]) + ("..." if len(missing) > 3 else ""))
         return {"pdf": str(pdf), "warnings": warnings}
 
     @tool(mcp)
