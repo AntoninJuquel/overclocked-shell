@@ -26,7 +26,7 @@ Returns pdf (path) and warnings (e.g. no Unicode font: symbols simplified)."""
         path, s = _load(slug)
         sheet_mod.save(path, s)   # regenerates the .md view
         pdf = path.with_suffix(".pdf")
-        warnings = pdf_out.write(pdf, path.with_suffix(".md").read_text(encoding="utf-8"))
+        warnings = pdf_out.write(pdf, s, {})  # icons wired by S-026 task 4
         return {"pdf": str(pdf), "warnings": warnings}
 
     @tool(mcp)
