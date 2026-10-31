@@ -15,4 +15,4 @@ Character and subclass screens, with the real icons, so a player follows it with
 - [x] Text that doesn't fit the middle continues on page 2
 - [x] A missing icon, a missing inventory snapshot or Bungie being unreachable never fails the export (placeholder +
       warning); a sheet exported once re-exports offline with its icons
-- [ ] `warlock-prismatic-getaway-buddy` exported and checked by eye against the approved mockup
+- [x] `warlock-prismatic-getaway-buddy` exported and checked by eye against the approved mockup
