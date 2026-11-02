@@ -49,7 +49,7 @@ def build_names(builds_dir):
                  *(x.get("set") for x in intent.get("sets") or []),
                  *((intent.get("artifact") or {}).get("perks") or []),
                  *(w.get("name") for w in res.get("weapons") or []),
-                 *(o.get("name") for w in intent.get("weapons") or [] for o in [
+                 *(n for w in intent.get("weapons") or [] for n in [
                      *(w.get("items") or []), *(x for c in w.get("perks") or [] for x in c)])]
         wanted = [norm(w["wanted"]) for w in intent.get("weapons") or [] if w.get("wanted")]
         out[path.stem] = ({strip_set(norm(n)) for n in names if n}, wanted)

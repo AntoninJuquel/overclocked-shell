@@ -68,8 +68,8 @@ def refs(s: dict, defs: dict, socket_types: dict, stat_defs: dict, set_defs: dic
          perk_defs: dict | None = None, hashes: dict | None = None) -> tuple[dict[str, str], list[str]]:
     """({key: icon path}, warnings). `defs`: DestinyInventoryItemDefinition, `stat_defs`: DestinyStatDefinition,
     both by hash string; set pieces with `set_defs`, set perks when `perk_defs` is given too (see `set_perks`).
-    `hashes`, when given, is filled with {key: item hash} of what has a page of its own (not the stats)."""
-    intent = s["intent"]
+    `hashes`, when given, is filled with {key: hash}; the sheet's own table says which copy of a weapon or plug."""
+    intent, known = s["intent"], s.get("hashes") or {}
     out, warnings = {}, []
 
     def add(key, d):
@@ -79,8 +79,8 @@ def refs(s: dict, defs: dict, socket_types: dict, stat_defs: dict, set_defs: dic
             out[key] = _icon(d)
         else:
             warnings.append(f"no icon: {key}")
-        if hashes is not None and d and d.get("hash") and not key.startswith("stat:"):
-            hashes[key] = d["hash"]
+        if hashes is not None and d and d.get("hash"):
+            hashes.setdefault(key, d["hash"])
 
     cls = share.CLASS_TYPES[s["class"]]
     armor = _index(defs, lambda d: d.get("itemType") == 2 and d.get("classType") == cls, _copy_key)
@@ -89,10 +89,10 @@ def refs(s: dict, defs: dict, socket_types: dict, stat_defs: dict, set_defs: dic
         add(f"item:{n}", armor.get(n))
     plugs = _index(defs, lambda d: d.get("plug") and not _is_armor_mod(_category(d)))
     for w in intent.get("weapons") or []:
-        for o in (w.get("items") or [])[:1]:
-            add(f"item:{o['name']}", defs.get(str(o.get("hash"))) or weapons.get(o["name"]))
-        for o in weapon_intent.options(w):
-            add(f"perk:{o['name']}", defs.get(str(o.get("hash"))) or plugs.get(o["name"]))
+        for n in (w.get("items") or [])[:1]:
+            add(f"item:{n}", defs.get(str(known.get(f"item:{n}"))) or weapons.get(n))
+        for n in weapon_intent.options(w):
+            add(f"perk:{n}", defs.get(str(known.get(f"perk:{n}"))) or plugs.get(n))
 
     sub = share.subclass_item(s, defs, socket_types, [], warnings)
     if sub:

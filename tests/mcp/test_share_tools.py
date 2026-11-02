@@ -80,6 +80,15 @@ def test_build_pdf_needs_no_snapshot(root):
     assert not any("refresh_inventory" in w for w in result["warnings"])
 
 
+def test_build_pdf_links_from_the_sheet_when_offline(root, monkeypatch):
+    s = json.loads((root / "profile" / "builds" / "good.json").read_text(encoding="utf-8"))
+    s["hashes"] = {"item:Getaway Artist": 424242}
+    (root / "profile" / "builds" / "good.json").write_text(json.dumps(s), encoding="utf-8")
+    monkeypatch.setattr(icons, "download", failing)
+    call("build_pdf", {"slug": "good"}, DownManifest())
+    assert b"/items/424242" in (root / "profile" / "builds" / "good.pdf").read_bytes()
+
+
 def failing(url):
     raise OSError("no network")
 
@@ -118,6 +127,25 @@ def test_build_pdf_offline_ignores_deleted_cache_file(root, monkeypatch):
     monkeypatch.setattr(icons, "download", lambda url: calls.append(url) or failing(url))
     result = call("build_pdf", {"slug": "good"}, DownManifest())
     assert not calls and not any("download failed" in w for w in result["warnings"])
+
+
+def test_build_png_and_html(root):
+    result = call("build_png", {"slug": "good"})
+    assert result["png"].endswith("good.png")
+    assert (root / "profile" / "builds" / "good.png").read_bytes().startswith(b"\x89PNG")
+    result = call("build_html", {"slug": "good"})
+    page = (root / "profile" / "builds" / "good.html").read_text(encoding="utf-8")
+    assert result["html"].endswith("good.html") and "data:image/png;base64," in page
+    assert "https://www.light.gg/db/" in page and "/items/50" in page
+
+
+def test_build_yaml(root):
+    result = call("build_yaml", {"slug": "good"})
+    path = root / "profile" / "builds" / "good.yaml"
+    assert result["yaml"] == str(path) and path.read_text(encoding="utf-8").startswith("name:")
+    assert "call check_build" in result["warnings"][0]
+    with pytest.raises(ToolError, match="unknown build: nope"):
+        call("build_yaml", {"slug": "nope"})
 
 
 def test_build_dim_link(root):

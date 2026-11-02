@@ -45,30 +45,29 @@ def test_subclass_and_plugs():
 
 def test_items_come_from_the_intent_not_the_resolved_ones():
     s = copy.deepcopy(SHEET)
-    s["intent"]["weapons"] = [{"slot": "Kinetic", "items": [{"name": "DECATUR 02", "hash": 2001}],
-                               "perks": [[{"name": "Physic", "hash": 60}]]}]
+    s["intent"]["weapons"] = [{"slot": "Kinetic", "items": ["DECATUR 02"], "perks": [["Physic"]]}]
     s["resolved"]["weapons"] = [{"slot": "Kinetic", "itemId": "w", "name": "Stand-in", "mod": "Other"}]
     out, warnings = run(s)
     assert out["item:DECATUR 02"] == "/icons/decatur.jpg" and out["perk:Physic"] == "/icons/physic.jpg"
     assert "item:Hood" not in out and "item:Stand-in" not in out and "perk:Other" not in out
 
 
-def test_hashes_of_what_has_a_page():
+def test_hashes_of_the_table_choose_the_copy():
     s = copy.deepcopy(SHEET)
-    s["intent"]["weapons"] = [{"slot": "Kinetic", "items": [{"name": "DECATUR 02", "hash": 2001}]}]
+    s["intent"]["weapons"] = [{"slot": "Kinetic", "items": ["DECATUR 02"]}]
+    s["hashes"] = {"item:DECATUR 02": 1002}
+    assert run(s)[0]["item:DECATUR 02"] == "/icons/hood_b.jpg"
+
+
+def test_hashes_are_collected():
+    s = copy.deepcopy(SHEET)
+    s["intent"]["weapons"] = [{"slot": "Kinetic", "items": ["DECATUR 02"]}]
     defs = fixture()
     defs["2001"]["hash"] = 2001
     stats = {"1735777505": {**STATS["1735777505"], "hash": 1735777505}}
     hashes = {}
     build_icons.refs(s, defs, SOCKET_TYPES, stats, hashes=hashes)
-    assert hashes == {"item:DECATUR 02": 2001}
-
-
-def test_weapon_options_without_a_hash_are_found_by_name():
-    s = copy.deepcopy(SHEET)
-    s["intent"]["weapons"] = [{"slot": "Kinetic", "items": [{"name": "DECATUR 02"}], "mods": [{"name": "Physic"}]}]
-    out, _ = run(s)
-    assert out["item:DECATUR 02"] == "/icons/decatur.jpg" and out["perk:Physic"] == "/icons/physic.jpg"
+    assert hashes == {"item:DECATUR 02": 2001, "stat:Grenade": 1735777505}
 
 
 def test_mods_come_from_the_intent():

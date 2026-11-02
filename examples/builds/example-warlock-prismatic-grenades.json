@@ -114,64 +114,31 @@
         "type": "Auto Rifle",
         "ammo": "Primary",
         "items": [
-          {
-            "name": "DECATUR 02",
-            "hash": 1850748385
-          }
+          "DECATUR 02"
         ],
         "perks": [
           [
-            {
-              "name": "Full Bore",
-              "hash": 202670084
-            }
+            "Full Bore"
           ],
           [
-            {
-              "name": "Accurized Rounds",
-              "hash": 3142289711
-            }
+            "Accurized Rounds"
           ],
           [
-            {
-              "name": "Physic",
-              "hash": 2980589453
-            },
-            {
-              "name": "Crystalline Corpsebloom",
-              "hash": 2922950962
-            },
-            {
-              "name": "Attrition Orbs",
-              "hash": 243981275
-            }
+            "Physic",
+            "Crystalline Corpsebloom",
+            "Attrition Orbs"
           ],
           [
-            {
-              "name": "Master of Arms",
-              "hash": 3081867624
-            },
-            {
-              "name": "Reciprocity",
-              "hash": 692399809
-            },
-            {
-              "name": "Redirection",
-              "hash": 3201496230
-            }
+            "Master of Arms",
+            "Reciprocity",
+            "Redirection"
           ]
         ],
         "mods": [
-          {
-            "name": "Ballistics",
-            "hash": 3417406043
-          }
+          "Ballistics"
         ],
         "masterworks": [
-          {
-            "name": "Masterworked: Range",
-            "hash": 2697220197
-          }
+          "Masterworked: Range"
         ]
       },
       {
@@ -182,10 +149,7 @@
         "ammo": "Special",
         "exotic": true,
         "items": [
-          {
-            "name": "Choir of One",
-            "hash": 3698448090
-          }
+          "Choir of One"
         ]
       },
       {
@@ -195,48 +159,97 @@
         "type": "Machine Gun",
         "ammo": "Heavy",
         "items": [
-          {
-            "name": "Song of Ir Yût",
-            "hash": 2828278545
-          }
+          "Song of Ir Yût"
         ],
         "perks": [
           [
-            {
-              "name": "Arrowhead Brake",
-              "hash": 839105230
-            }
+            "Arrowhead Brake"
           ],
           [
-            {
-              "name": "Alloy Magazine",
-              "hash": 1431678320
-            }
+            "Alloy Magazine"
           ],
           [
-            {
-              "name": "Demolitionist",
-              "hash": 3523296417
-            }
+            "Demolitionist"
           ],
           [
-            {
-              "name": "Master of Arms",
-              "hash": 3081867624
-            },
-            {
-              "name": "Mega Kill Clip",
-              "hash": 2305480722
-            }
+            "Master of Arms",
+            "Mega Kill Clip"
           ]
         ],
         "masterworks": [
-          {
-            "name": "Masterworked: Reload Speed",
-            "hash": 758092021
-          }
+          "Masterworked: Reload Speed"
         ]
       }
     ]
+  },
+  "hashes": {
+    "item:DECATUR 02": 1850748385,
+    "perk:Full Bore": 202670084,
+    "perk:Accurized Rounds": 3142289711,
+    "perk:Physic": 2980589453,
+    "perk:Crystalline Corpsebloom": 2922950962,
+    "perk:Attrition Orbs": 243981275,
+    "perk:Master of Arms": 3081867624,
+    "perk:Reciprocity": 692399809,
+    "perk:Redirection": 3201496230,
+    "perk:Ballistics": 3417406043,
+    "perk:Masterworked: Range": 2697220197,
+    "item:Choir of One": 3698448090,
+    "item:Song of Ir Yût": 2828278545,
+    "perk:Arrowhead Brake": 839105230,
+    "perk:Alloy Magazine": 1431678320,
+    "perk:Demolitionist": 3523296417,
+    "perk:Mega Kill Clip": 2305480722,
+    "perk:Masterworked: Reload Speed": 758092021,
+    "item:Robes of the Great Hunt": 4274862443,
+    "item:Bond of the Great Hunt": 3014562562,
+    "item:Getaway Artist": 4177778015,
+    "item:Hood of the Great Hunt": 272616828,
+    "item:Boots of the Great Hunt": 3245192919,
+    "plug:Song of Flame": 1869939005,
+    "plug:Storm Grenade": 4241856103,
+    "plug:Arcane Needle": 3644045871,
+    "plug:Phoenix Dive": 1444664836,
+    "plug:Burst Glide": 5333293,
+    "plug:Feed the Void": 790664815,
+    "plug:Bleak Watcher": 790664813,
+    "plug:Facet of Purpose": 124726498,
+    "plug:Facet of Courage": 2626922124,
+    "plug:Facet of Protection": 2626922120,
+    "plug:Facet of Dominance": 124726504,
+    "mod:Stasis Siphon": 837201397,
+    "mod:Ashes to Assets": 856936828,
+    "mod:Firepower": 2485657760,
+    "mod:Grenade Font": 1781551382,
+    "mod:Bolstering Detonation": 3726719281,
+    "mod:Arc Resistance": 953234331,
+    "mod:Solar Resistance": 3194530172,
+    "mod:Void Resistance": 3410844187,
+    "mod:Void Weapon Surge": 3467460423,
+    "mod:Recuperation": 4087056174,
+    "mod:Time Dilation": 1755737153,
+    "mod:Powerful Attraction": 11126525,
+    "artifact:Hunter's Journal": 1213492937,
+    "artifact:Sustained Fire": 255237659,
+    "artifact:Energy Diffusion Substrate": 3116632768,
+    "artifact:Radiant Orbs": 2344320975,
+    "artifact:Targeting Autoloader": 2344320972,
+    "artifact:Counter Energy": 2344320970,
+    "artifact:Shieldcrush": 1533272844,
+    "artifact:Shock and Awe": 1533272847,
+    "stat:Weapons": 2996146975,
+    "stat:Health": 392767087,
+    "stat:Class": 1943323491,
+    "stat:Grenade": 1735777505,
+    "stat:Super": 144602215,
+    "stat:Melee": 4244567218,
+    "mod:Radiant Light": 2199590568,
+    "mod:Heavy Ammo Finder": 554409585,
+    "mod:Concussive Dampener": 3719981603,
+    "mod:Absolution": 2793473444,
+    "mod:Bomber": 4188291233,
+    "set:Great Hunt": 673904900,
+    "setperk:Taken Barrier": 3657900811,
+    "setperk:Taken Armaments": 3657900810
   }
 }

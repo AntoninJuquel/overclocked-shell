@@ -8,6 +8,7 @@ dependencies = [
     "fpdf2>=2.8,<2.9",
     "httpx>=0.27",
     "mcp>=2.3",
+    "pypdfium2>=5.14.0",
     "python-dotenv>=1.0",
 ]
 

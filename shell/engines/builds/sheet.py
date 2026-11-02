@@ -53,11 +53,8 @@ def _text_list(value, field):
 
 
 def _options(value, field):
-    """Alternatives best first: a non-empty list of {name, hash} (`hash` filled by check_build)."""
-    _check(isinstance(value, list) and value, field, "non-empty list expected")
-    for i, o in enumerate(value):
-        _check(isinstance(o, dict) and _text(o.get("name")), f"{field}[{i}].name", "name required")
-        _check(o.get("hash") is None or _int(o["hash"]), f"{field}[{i}].hash", "integer expected")
+    """Alternatives best first: a non-empty list of names."""
+    _check(isinstance(value, list) and value and all(_text(x) for x in value), field, "non-empty list of names expected")
 
 
 def validate_sets(sets, field):
@@ -214,6 +211,8 @@ def validate(s):
         _text_list(art.get("perks", []), "intent.artifact.perks")
         _check(len(art.get("perks", [])) <= len(ARTIFACT_SOCKET_COLUMNS), "intent.artifact.perks",
                f"at most {len(ARTIFACT_SOCKET_COLUMNS)} perks")
+    hashes = s.get("hashes", {})
+    _check(isinstance(hashes, dict) and all(_int(h) for h in hashes.values()), "hashes", "{name: integer} expected")
     if "resolved" in s:
         _validate_resolved(s["resolved"])
     return s

@@ -25,6 +25,11 @@ ITEM_DEFS = {
 ARTIFACT_MD = "## Satchel (Revenant)\n\n### Supernova\n- section: Satchel (Revenant)\n- column: 3\n"
 
 
+class _NoTables:
+    def table(self, name, keep=True):
+        return {}
+
+
 @pytest.fixture
 def root(tmp_path, monkeypatch):
     from shell.sources.aegis import lookup
@@ -38,7 +43,7 @@ def root(tmp_path, monkeypatch):
 @pytest.fixture
 def call(root):
     ctx = Context()
-    ctx.__dict__.update(manifest=None, defs={"plugs": {}})
+    ctx.__dict__.update(manifest=_NoTables(), defs={"plugs": {}})
     mcp = build_server(ctx)
 
     def run(name, args=None):
@@ -82,22 +87,22 @@ def test_check_build(call, root):
         call("check_build", {"slug": "nope"})
 
 
-def test_check_build_fills_weapon_hashes(root):
+def test_check_build_fills_the_hash_table(root):
     class Manifest:
         def table(self, name, keep=True):
-            return {"DestinyInventoryItemDefinition": {"9": {"displayProperties": {"name": "Rifle"}, "itemType": 3}},
-                    "DestinyPlugSetDefinition": {}}[name]
+            return {"DestinyInventoryItemDefinition": {"9": {"displayProperties": {"name": "Rifle"}, "itemType": 3,
+                                                             "hash": 9}}}.get(name, {})
 
     s = copy.deepcopy(SHEET)
-    s["intent"]["weapons"][0]["items"] = [{"name": "Rifle"}]
-    s["intent"]["weapons"][0]["mods"] = [{"name": "Nope"}]
+    s["intent"]["weapons"][0]["items"] = ["Rifle"]
+    s["intent"]["weapons"][0]["mods"] = ["Nope"]
     write_sheet(root, "named", s)
     ctx = Context()
     ctx.__dict__.update(manifest=Manifest(), defs={"plugs": {}}, lexicon=None)
     result = asyncio.run(build_server(ctx).call_tool("check_build", {"slug": "named"}))
     assert "weapon: Kinetic: Nope is not an option of Rifle" in result.content[0].text
     saved = json.loads((root / "profile" / "builds" / "named.json").read_text(encoding="utf-8"))
-    assert saved["intent"]["weapons"][0]["items"] == [{"name": "Rifle", "hash": 9}]
+    assert saved["intent"]["weapons"][0]["items"] == ["Rifle"] and saved["hashes"]["item:Rifle"] == 9
 
 
 def test_subclass_options(call, root):

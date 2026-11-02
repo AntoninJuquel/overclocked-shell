@@ -61,12 +61,12 @@ class _Page(FPDF):
 
 
 def render(s: dict, icons: dict[str, Path], fonts="auto", compress=True, armor=None, slug="build",
-           set_perks=None, tr=None, links=None) -> tuple[bytes, list[str]]:
+           set_perks=None, tr=None, links=None, boxes=None) -> tuple[bytes, list[str]]:
     """(PDF bytes, warnings). icons: {"<kind>:<name>": local file}. fonts: "auto" (find_fonts), None (Helvetica) or
     (regular, bold) paths. armor: {slot: piece} from `build_icons.intent_armor`. set_perks: {set: [{pieces, name, description}]}
     from `build_icons.set_perks`. tr: str → str shown in the player's language (`lexicon.translator`); icons,
     gradients and layout stay keyed by the sheet's English names. links: {"<kind>:<name>": url} makes those
-    icons clickable."""
+    icons clickable. boxes: a list filled with (x, y, width, label, url) of each link, in mm."""
     links = links or {}
     tr = tr or (lambda t: t)
     set_perks = set_perks or {}
@@ -120,6 +120,8 @@ def render(s: dict, icons: dict[str, Path], fonts="auto", compress=True, armor=N
         file = icons.get(key)
         if key in links:
             pdf.link(x, y, w, w, links[key])
+            if boxes is not None:
+                boxes.append((x, y, w, clean(key.split(":", 1)[1]), links[key]))
         if bg:
             fill(x, y, w, bg, round_=round_)
         if file is not None:
@@ -181,7 +183,7 @@ def render(s: dict, icons: dict[str, Path], fonts="auto", compress=True, armor=N
     # weapons: icon, name, then the perk columns (alternatives below), mods and masterworks
     y = 90
     for w in sorted(intent.get("weapons") or [], key=lambda w: WEAPON_SLOTS.index(w["slot"])):
-        name = (w.get("items") or [{}])[0].get("name")
+        name = (w.get("items") or [None])[0]
         if name:
             icon(f"item:{name}", 6, y, 21, bg="#000000")
         else:
@@ -193,10 +195,10 @@ def render(s: dict, icons: dict[str, Path], fonts="auto", compress=True, armor=N
             text(30, y + 5.3, w["wanted"], 9, "", "#dddddd", w=80)
         for j, column in enumerate(columns):
             for k, o in enumerate(column):
-                icon(f"perk:{o['name']}", 30 + j * 7.8, y + 6 + k * 7, 6.4, round_=True, bg="#3d6f93" if k == 0 else "#25323d")
+                icon(f"perk:{o}", 30 + j * 7.8, y + 6 + k * 7, 6.4, round_=True, bg="#3d6f93" if k == 0 else "#25323d")
         x = 30 + len(columns) * 7.8 + 1.4
         for o in [*(w.get("mods") or []), *(w.get("masterworks") or [])]:
-            icon(f"perk:{o['name']}", x, y + 6, 6.4, bg="#4a4636")
+            icon(f"perk:{o}", x, y + 6, 6.4, bg="#4a4636")
             frame(x, y + 6, 6.4, MOD_GOLD, 1, .25)
             x += 7.8
         y += max(21, 6 + 7 * max(map(len, columns), default=0)) + 4  # as tall as its longest perk column
@@ -274,9 +276,10 @@ def render(s: dict, icons: dict[str, Path], fonts="auto", compress=True, armor=N
     return bytes(pdf.output()), warnings
 
 
-def write(path: Path, s: dict, icons: dict[str, Path], armor=None, set_perks=None, tr=None, links=None) -> list[str]:
+def write(path: Path, s: dict, icons: dict[str, Path], armor=None, set_perks=None, tr=None, links=None,
+          boxes=None) -> list[str]:
     """Writes the PDF; returns the warnings."""
-    data, warnings = render(s, icons, armor=armor, slug=path.stem, set_perks=set_perks, tr=tr, links=links)
+    data, warnings = render(s, icons, armor=armor, slug=path.stem, set_perks=set_perks, tr=tr, links=links, boxes=boxes)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
     return warnings

@@ -25,20 +25,19 @@ def weapon(**fields):
 
 
 def opts(*names):
-    return [{"name": n} for n in names]
+    return list(names)
 
 
-def run(w):
-    return weapon_intent.normalize([w], DEFS, SETS)
+def run(w, hashes=None):
+    return weapon_intent.normalize([w], DEFS, SETS, {} if hashes is None else hashes)
 
 
 def test_hashes_with_alternatives_and_plain_copy():
     w = weapon(items=opts("Rifle"), perks=[opts("Physic", "Attrition Orbs"), opts("Master of Arms")], mods=opts("Ballistics"))
-    assert run(w) == []
-    assert w["items"] == [{"name": "Rifle", "hash": 1}]
-    assert w["perks"][0] == [{"name": "Physic", "hash": 10}, {"name": "Attrition Orbs", "hash": 12}]
-    assert w["perks"][1] == [{"name": "Master of Arms", "hash": 20}]
-    assert w["mods"] == [{"name": "Ballistics", "hash": 40}]
+    hashes = {}
+    assert run(w, hashes) == []
+    assert hashes == {"item:Rifle": 1, "perk:Physic": 10, "perk:Attrition Orbs": 12, "perk:Master of Arms": 20,
+                      "perk:Ballistics": 40}
 
 
 def test_option_the_weapon_cannot_roll():
@@ -61,18 +60,28 @@ def test_unknown_weapon():
 
 
 def test_copy_that_can_roll_the_perks():
-    w = weapon(items=opts("Reissue"), perks=[opts("Master of Arms")])
-    assert run(w) == []
-    assert w["items"][0]["hash"] == 3
+    hashes = {}
+    assert run(weapon(items=opts("Reissue"), perks=[opts("Master of Arms")]), hashes) == []
+    assert hashes["item:Reissue"] == 3
 
 
 def test_perks_without_a_weapon():
-    w = weapon(perks=[opts("Physic")], mods=opts("Unknown"))
-    assert run(w) == ["Kinetic: unknown perk or mod: Unknown"]
-    assert w["perks"][0][0]["hash"] == 10
+    hashes = {}
+    assert run(weapon(perks=[opts("Physic")], mods=opts("Unknown")), hashes) == ["Kinetic: unknown perk or mod: Unknown"]
+    assert hashes["perk:Physic"] == 10
+
+
+def test_missing_mods_only_where_a_mod_fits():
+    hashes = {"item:Rifle": 1, "item:Reissue": 2}
+    with_socket = weapon(items=["Rifle"])
+    chosen = weapon(slot="Energy", items=["Rifle"], mods=["Ballistics"])
+    exotic = weapon(slot="Power", items=["Reissue"])
+    perks_only = weapon(slot="Power", perks=[["Physic"]])
+    assert weapon_intent.missing_mods([with_socket, chosen, exotic, perks_only], DEFS, SETS, hashes) == [
+        "Kinetic: Rifle has a mod socket but no mod is chosen"]
 
 
 def test_helpers():
     w = weapon(perks=[opts("Physic", "Attrition Orbs"), opts("Master of Arms")], mods=opts("Ballistics"))
-    assert [o["name"] for o in weapon_intent.options(w)] == ["Physic", "Attrition Orbs", "Master of Arms", "Ballistics"]
+    assert weapon_intent.options(w) == ["Physic", "Attrition Orbs", "Master of Arms", "Ballistics"]
     assert weapon_intent.is_named(w) and not weapon_intent.is_named(weapon(wanted="free text"))

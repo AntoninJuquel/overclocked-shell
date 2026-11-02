@@ -8,7 +8,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
 from shell.context import Context
-from shell.engines.builds import artifact, catalog, rankings as rankings_mod, sheet, subclass, weapon_intent, weapons
+from shell.engines.builds import artifact, catalog, rankings as rankings_mod, sheet, sheet_hashes, subclass, weapon_intent, weapons
 from shell.engines.builds.snapshot import read_snapshot
 from shell.engines.builds.stats import CLASSES, ELEMENTS
 from shell.mcp import tool
@@ -48,8 +48,9 @@ def register(mcp: MCPServer, ctx: Context) -> None:
     def check_build(slug: str) -> dict:
         """Check build sheet profile/builds/<slug>.json: sheet rules, then subclass (aspects, fragments, abilities
 against the manifest), artifact perks (compendium) and intent weapons (items, perks per column, mods, masterworks
-against the manifest; fills in their hashes). Saves the sheet and regenerates its .md view when the sheet itself is
-valid. Problems are prefixed "sheet…", "subclass: …", "artifact: …" or "weapon: …"; ok is true when there is none."""
+against the manifest). Rebuilds the sheet's `hashes` table (every name it holds), saves the sheet and regenerates its
+.md view when the sheet itself is valid. Problems are prefixed "sheet…", "subclass: …", "artifact: …" or "weapon: …"; ok is true when there is none. warnings (they don't affect ok): a named weapon that
+can take a mod but names none."""
         existing = sorted(p.stem for p in sheet.folder().glob("*.json"))
         if slug not in existing:
             raise ToolError(f"Unknown build: {slug}. Existing: {', '.join(existing) or 'none'}")
@@ -66,13 +67,14 @@ valid. Problems are prefixed "sheet…", "subclass: …", "artifact: …" or "we
                 problems += [f"artifact: {p}" for p in artifact.check(intent, artifact.load())]
             except ValueError as e:
                 problems.append(f"artifact: {e}")
-        weapons_ = s["intent"].get("weapons") or []
-        if any(weapon_intent.is_named(w) for w in weapons_):
-            problems += [f"weapon: {p}" for p in weapon_intent.normalize(
-                weapons_, ctx.manifest.table("DestinyInventoryItemDefinition", keep=False),
-                ctx.manifest.table("DestinyPlugSetDefinition", keep=False))]
+        defs, socket_types, stat_defs, set_defs, perk_defs, plug_sets = (ctx.manifest.table(name, keep=False) for name in (
+            "DestinyInventoryItemDefinition", "DestinySocketTypeDefinition", "DestinyStatDefinition",
+            "DestinyEquipableItemSetDefinition", "DestinySandboxPerkDefinition", "DestinyPlugSetDefinition"))
+        problems += [f"weapon: {p}" for p in sheet_hashes.fill(s, defs, socket_types, stat_defs, set_defs, perk_defs,
+                                                               plug_sets)]
+        warnings = weapon_intent.missing_mods(s["intent"].get("weapons") or [], defs, plug_sets, s["hashes"])
         sheet.save(path, s)
-        return {"ok": not problems, "problems": problems, "md": str(path.with_suffix(".md"))}
+        return {"ok": not problems, "problems": problems, "warnings": warnings, "md": str(path.with_suffix(".md"))}
 
     @tool(mcp)
     @_player_facing
