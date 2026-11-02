@@ -32,6 +32,20 @@ def test_valid_sheet_passes():
     sheet.validate(copy.deepcopy(SHEET))
 
 
+def test_named_weapon_options():
+    s = copy.deepcopy(SHEET)
+    w = s["intent"]["weapons"][0]
+    w.update(items=[{"name": "DECATUR 02", "hash": 1}], perks=[[{"name": "Physic"}, {"name": "Attrition Orbs"}]],
+             mods=[{"name": "Ballistics"}], masterworks=[{"name": "Masterworked: Range"}])
+    sheet.validate(s)
+    for key, value, field in (("items", [], "items"), ("perks", [[]], "perks[0]"), ("mods", [{"hash": 1}], "mods[0].name"),
+                              ("items", [{"name": "x", "hash": "1"}], "items[0].hash")):
+        bad = copy.deepcopy(s)
+        bad["intent"]["weapons"][0][key] = value
+        with pytest.raises(sheet.SheetError, match=rf"intent\.weapons\[0\]\.{re.escape(field)}"):
+            sheet.validate(bad)
+
+
 @pytest.mark.parametrize("path,value,field", [
     (("class",), "Paladin", "class"),
     (("subclass", "element"), "Light", "subclass.element"),

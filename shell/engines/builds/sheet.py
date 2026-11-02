@@ -52,6 +52,14 @@ def _text_list(value, field):
     _check(isinstance(value, list) and all(_text(x) for x in value), field, "list of names expected")
 
 
+def _options(value, field):
+    """Alternatives best first: a non-empty list of {name, hash} (`hash` filled by check_build)."""
+    _check(isinstance(value, list) and value, field, "non-empty list expected")
+    for i, o in enumerate(value):
+        _check(isinstance(o, dict) and _text(o.get("name")), f"{field}[{i}].name", "name required")
+        _check(o.get("hash") is None or _int(o["hash"]), f"{field}[{i}].hash", "integer expected")
+
+
 def validate_sets(sets, field):
     """List of sets {set, pieces}: 2 or 4 pieces, no duplicate, 4 pieces at most (the exotic is not one of them)."""
     _check(isinstance(sets, list), field, "list expected")
@@ -184,6 +192,13 @@ def validate(s):
         seen_weapons.add(slot)
         for key in ("role", "wanted", "type"):
             _opt_text(w, key, f"{f}.{key}")
+        for key in ("items", "mods", "masterworks"):
+            if key in w:
+                _options(w[key], f"{f}.{key}")
+        if "perks" in w:
+            _check(isinstance(w["perks"], list), f"{f}.perks", "list of columns expected")
+            for j, column in enumerate(w["perks"]):
+                _options(column, f"{f}.perks[{j}]")
         _check(w.get("exotic") is None or isinstance(w["exotic"], bool), f"{f}.exotic", "true or false expected")
         if w.get("element") is not None:
             _check(w["element"] in WEAPON_ELEMENTS, f"{f}.element", f"must be one of {', '.join(WEAPON_ELEMENTS)}")

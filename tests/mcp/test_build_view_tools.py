@@ -82,6 +82,24 @@ def test_check_build(call, root):
         call("check_build", {"slug": "nope"})
 
 
+def test_check_build_fills_weapon_hashes(root):
+    class Manifest:
+        def table(self, name, keep=True):
+            return {"DestinyInventoryItemDefinition": {"9": {"displayProperties": {"name": "Rifle"}, "itemType": 3}},
+                    "DestinyPlugSetDefinition": {}}[name]
+
+    s = copy.deepcopy(SHEET)
+    s["intent"]["weapons"][0]["items"] = [{"name": "Rifle"}]
+    s["intent"]["weapons"][0]["mods"] = [{"name": "Nope"}]
+    write_sheet(root, "named", s)
+    ctx = Context()
+    ctx.__dict__.update(manifest=Manifest(), defs={"plugs": {}}, lexicon=None)
+    result = asyncio.run(build_server(ctx).call_tool("check_build", {"slug": "named"}))
+    assert "weapon: Kinetic: Nope is not an option of Rifle" in result.content[0].text
+    saved = json.loads((root / "profile" / "builds" / "named.json").read_text(encoding="utf-8"))
+    assert saved["intent"]["weapons"][0]["items"] == [{"name": "Rifle", "hash": 9}]
+
+
 def test_subclass_options(call, root):
     text = call("subclass_options", {"class_type": "warlock", "element": "arc"})
     assert text.startswith("Aspects Warlock Arc") and "- Lightning Surge: 3" in text

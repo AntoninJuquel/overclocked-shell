@@ -8,7 +8,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
 from shell.context import Context
-from shell.engines.builds import artifact, catalog, rankings as rankings_mod, sheet, subclass, weapons
+from shell.engines.builds import artifact, catalog, rankings as rankings_mod, sheet, subclass, weapon_intent, weapons
 from shell.engines.builds.snapshot import read_snapshot
 from shell.engines.builds.stats import CLASSES, ELEMENTS
 from shell.mcp import tool
@@ -47,8 +47,9 @@ def register(mcp: MCPServer, ctx: Context) -> None:
     @_player_facing
     def check_build(slug: str) -> dict:
         """Check build sheet profile/builds/<slug>.json: sheet rules, then subclass (aspects, fragments, abilities
-against the manifest) and artifact perks (compendium). Regenerates the sheet's .md view when the sheet itself is
-valid. Problems are prefixed "sheet…", "subclass: …" or "artifact: …"; ok is true when there is none."""
+against the manifest), artifact perks (compendium) and intent weapons (items, perks per column, mods, masterworks
+against the manifest; fills in their hashes). Saves the sheet and regenerates its .md view when the sheet itself is
+valid. Problems are prefixed "sheet…", "subclass: …", "artifact: …" or "weapon: …"; ok is true when there is none."""
         existing = sorted(p.stem for p in sheet.folder().glob("*.json"))
         if slug not in existing:
             raise ToolError(f"Unknown build: {slug}. Existing: {', '.join(existing) or 'none'}")
@@ -65,6 +66,11 @@ valid. Problems are prefixed "sheet…", "subclass: …" or "artifact: …"; ok 
                 problems += [f"artifact: {p}" for p in artifact.check(intent, artifact.load())]
             except ValueError as e:
                 problems.append(f"artifact: {e}")
+        weapons_ = s["intent"].get("weapons") or []
+        if any(weapon_intent.is_named(w) for w in weapons_):
+            problems += [f"weapon: {p}" for p in weapon_intent.normalize(
+                weapons_, ctx.manifest.table("DestinyInventoryItemDefinition", keep=False),
+                ctx.manifest.table("DestinyPlugSetDefinition", keep=False))]
         sheet.save(path, s)
         return {"ok": not problems, "problems": problems, "md": str(path.with_suffix(".md"))}
 

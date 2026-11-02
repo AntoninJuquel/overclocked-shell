@@ -81,14 +81,18 @@ files: no round threshold without a reason. Fragment bonuses are counted by the 
   is never sacrificed to filling).
 - Weapons, one per slot (`Kinetic`, `Energy`, `Power`): `role` ("add clear", "boss DPS"…) and the ideal weapon in
   theory, respecting [docs/game-rules.md](../../../docs/game-rules.md) (elements per slot, ammo, a single exotic):
-  `element`, `type` ("Sniper Rifle"), `ammo` (`Primary`, `Special`, `Heavy`), `exotic` (`true` for an exotic) and
-  `wanted` (a precise weapon or the target perks, e.g. "Repulsor Brace + Destabilizing Rounds"). Consider an
+  `element`, `type` ("Sniper Rifle"), `ammo` (`Primary`, `Special`, `Heavy`), `exotic` (`true` for an exotic), then
+  what is wanted as options `{"name": "<exact manifest name>"}` (`check_build` adds the hash), alternatives best
+  first: `items` (the weapon; leave it out when only perks matter), `perks` (one list per column, e.g.
+  `[[{"name": "Fluted Barrel"}, {"name": "Arrowhead Brake"}], [{"name": "Demolitionist"}]]`, a catalyst is a column),
+  `mods`, `masterworks` (`"Masterworked: Range"`). `wanted` is free text only for what has no name ("precision
+  damage perks"). This is what the shared PDF shows, whatever the player owns. Consider an
   exotic weapon: the exotic armor does not take its place. `check_build` refuses an impossible element or ammo
   for the slot, and more than one exotic. Pick the ideal weapon among Aegis's best for the role:
   `rankings(view="weapons", type="<type>", element=…)` (recommended perks and origin trait),
   `rankings(view="exotic-weapons")`; for a boss DPS role, `rankings(view="dps-sustained")` and
   `rankings(view="dps-swap")` (Boss Damage), and `rankings(view="bosses", activity="<activity>")` for health and
-  damage phase. Carry the recommended perks into `wanted`.
+  damage phase. Carry the recommended perks into `perks`.
 - Artifact: compare the Compendium's artifacts (`artifact_options()`, with each perk's Aegis tier `(S)`;
   `rankings(view="artifact")`; effects in `artifact-perks.md`; past seasons' artifacts stay equippable and every
   character has them all) and keep the best for the concept, with its 7 perks:
@@ -124,8 +128,10 @@ the player's OK), without `resolved`:
     "artifact": {"name": "NPA Repulsion Regulator", "perks": ["Amped Up", "..."]},
     "weapons": [
       {"slot": "Kinetic", "role": "precision", "element": "Strand", "type": "Sniper Rifle", "ammo": "Special"},
-      {"slot": "Energy", "role": "add clear", "element": "Arc", "exotic": true, "wanted": "Ex Diris"},
-      {"slot": "Power", "role": "boss DPS", "type": "Rocket Launcher", "wanted": "Bait and Switch"}
+      {"slot": "Energy", "role": "add clear", "element": "Arc", "exotic": true, "items": [{"name": "Ex Diris"}]},
+      {"slot": "Power", "role": "boss DPS", "type": "Rocket Launcher", "items": [{"name": "Hezen Vengeance"}],
+       "perks": [[{"name": "Bait and Switch"}, {"name": "Explosive Light"}]], "mods": [{"name": "Backup Mag"}],
+       "masterworks": [{"name": "Masterworked: Blast Radius"}]}
     ]
   }
 }
@@ -134,7 +140,8 @@ the player's OK), without `resolved`:
 Then `check_build(slug)` and fix until `ok` is true: it validates the format (an invalid sheet writes nothing),
 checks aspects and fragments for the class and element (no duplicates, no more fragments than slots; the
 expected name is given when only case or prefix differs), the super and abilities, the artifact and its perks
-(column rules), and regenerates the `.md`. It accepts empty fragment slots: make sure they are all filled. A super
+(column rules), the intent weapons against the manifest (a perk the weapon cannot roll, two perks given as one
+column; it fills in the hashes), and regenerates the `.md`. It accepts empty fragment slots: make sure they are all filled. A super
 or ability missing from the sheet stays as in game at equip time.
 
 ## 7. Armor
@@ -166,7 +173,7 @@ magazine, battery, traits…) with all their options: `(selected)` = in place, `
 wishlist for this weapon, `A` = recommended by Aegis (and, at the end, its tier, recommended masterwork and notes).
 - `perks`: for **every** column with several options (Tier 5 weapons: often 2 barrel and magazine options and 3
   per trait), the best option for the weapon's role in this build (effects in `weapon-perks.md`), considering the
-  intent's `wanted` and the `✓`; exact option names, at most one per column, never one marked "not insertable".
+  intent's `perks` and the `✓`; exact option names, at most one per column, never one marked "not insertable".
   Also list options already in place that we keep: `perks` describes the full wanted configuration. Crafted
   weapon: one option per column, nothing to choose.
 - `mod`: the best weapon mod for the role ("Weapon Mods" section of `weapon-perks.md`: Backup Mag, Targeting

@@ -19,7 +19,7 @@ PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4
                        "rkJggg==")
 
 
-ICON_DEFS = {h: {**d, "displayProperties": {**d.get("displayProperties", {}), "icon": f"/common/{h}.png"}}
+ICON_DEFS = {h: {**d, "hash": int(h), "displayProperties": {**d.get("displayProperties", {}), "icon": f"/common/{h}.png"}}
              for h, d in DEFS.items()}
 
 
@@ -62,15 +62,7 @@ def png(monkeypatch):
     monkeypatch.setattr(icons, "download", lambda url: PNG)
 
 
-def snapshots(root):
-    folder = root / "profile" / "inventory"
-    folder.mkdir(parents=True)
-    (folder / "armor.json").write_text(json.dumps(ARMOR), encoding="utf-8")
-    (folder / "weapons.json").write_text(json.dumps(WEAPONS), encoding="utf-8")
-
-
 def test_build_pdf(root):
-    snapshots(root)
     with pytest.raises(ToolError, match="unknown build: nope"):
         call("build_pdf", {"slug": "nope"})
     result = call("build_pdf", {"slug": "good"})
@@ -79,11 +71,13 @@ def test_build_pdf(root):
     assert (root / "profile" / "builds" / "good.md").exists()
     assert b"/Subtype /Image" in pdf.read_bytes()
     assert icons.indexed()["setperk:Renewal Grasp"] == "/common/71.png"
+    assert b"https://www.light.gg/db/" in pdf.read_bytes() and b"/items/50" in pdf.read_bytes()
 
 
-def test_build_pdf_without_snapshot_warns(root):
+def test_build_pdf_needs_no_snapshot(root):
     result = call("build_pdf", {"slug": "good"})
-    assert any("refresh_inventory" in w for w in result["warnings"])
+    assert (root / "profile" / "builds" / "good.pdf").exists()
+    assert not any("refresh_inventory" in w for w in result["warnings"])
 
 
 def failing(url):
@@ -91,7 +85,6 @@ def failing(url):
 
 
 def test_build_pdf_offline_uses_index(root, monkeypatch):
-    snapshots(root)
     call("build_pdf", {"slug": "good"})
     monkeypatch.setattr(icons, "download", failing)
     result = call("build_pdf", {"slug": "good"}, DownManifest())
@@ -100,7 +93,6 @@ def test_build_pdf_offline_uses_index(root, monkeypatch):
 
 
 def test_build_pdf_offline_never_cached(root, monkeypatch):
-    snapshots(root)
     monkeypatch.setattr(icons, "download", failing)
     result = call("build_pdf", {"slug": "good"}, DownManifest())
     assert (root / "profile" / "builds" / "good.pdf").read_bytes().startswith(b"%PDF")
@@ -113,13 +105,11 @@ def test_build_pdf_offline_never_cached(root, monkeypatch):
 
 
 def test_build_pdf_missing_key_reported_once(root):
-    snapshots(root)
     result = call("build_pdf", {"slug": "good"}, FakeManifest())
     assert not any(w.startswith(("icon not found:", "no icon:")) for w in result["warnings"])
 
 
 def test_build_pdf_offline_ignores_deleted_cache_file(root, monkeypatch):
-    snapshots(root)
     call("build_pdf", {"slug": "good"})
     index = icons.indexed()
     gone = next(iter(index))
@@ -128,14 +118,6 @@ def test_build_pdf_offline_ignores_deleted_cache_file(root, monkeypatch):
     monkeypatch.setattr(icons, "download", lambda url: calls.append(url) or failing(url))
     result = call("build_pdf", {"slug": "good"}, DownManifest())
     assert not calls and not any("download failed" in w for w in result["warnings"])
-
-
-def test_build_pdf_corrupt_snapshot(root):
-    snapshots(root)
-    (root / "profile" / "inventory" / "armor.json").write_text("{", encoding="utf-8")
-    result = call("build_pdf", {"slug": "good"})
-    assert (root / "profile" / "builds" / "good.pdf").read_bytes().startswith(b"%PDF")
-    assert any("armor snapshot" in w and "refresh_inventory" in w for w in result["warnings"])
 
 
 def test_build_dim_link(root):

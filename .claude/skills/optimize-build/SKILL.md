@@ -38,7 +38,7 @@ roles): never change it here without their OK. `resolved` is the last dated resu
    to the intent, `check_build(slug)`, then rerun step 3.
 5. Weapons: grades come from the last weapon triage (`profile/triage/weapons.json`); run the `weapon-triage`
    skill first, otherwise every grade shows "—". For each weapon in `intent.weapons`,
-   `weapon_candidates(slot=…, element=…, type=…, perk=…)` filtered from its `element`, `type` and `wanted` (the
+   `weapon_candidates(slot=…, element=…, type=…, perk=…)` filtered from its `element`, `type`, `items` and `perks` (the
    intent describes the ideal weapon; a substitute is a concession to flag). Weapons are sorted by wishlist grade
    (S first). The `aegis` column gives Aegis's tier and rank (`S #1`; `+`: several versions rated);
    `weapon_options` marks `A` the perks he recommends. Perks column: `selected [alt1/alt2]` = perk in place and

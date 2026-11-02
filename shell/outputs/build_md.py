@@ -64,7 +64,12 @@ def render(s, source="the JSON sheet", needs=(), tr=None):
     if art:
         lines.append(f"- Artifact: {_oneline(art['name'])} — {_oneline(', '.join(art.get('perks', []))) or '—'}")
     for w in intent.get("weapons", []):
-        wanted = f" ({_oneline(w['wanted'])})" if w.get("wanted") else ""
+        named = [" / ".join(o["name"] for o in w.get("items") or []),
+                 ", ".join(" / ".join(o["name"] for o in c) for c in w.get("perks") or []),
+                 " / ".join(o["name"] for o in w.get("mods") or []),
+                 " / ".join(o["name"] for o in w.get("masterworks") or []), w.get("wanted")]
+        named = "; ".join(_oneline(x) for x in named if x)
+        wanted = f" ({named})" if named else ""
         spec = [w.get("element"), w.get("type"), w.get("ammo"), "exotic" if w.get("exotic") else None]
         spec = " · ".join(_oneline(x) for x in spec if x)
         lines.append(f"- Weapon {w['slot']}: {_oneline(w.get('role') or '—')}{' — ' + spec if spec else ''}{wanted}")
