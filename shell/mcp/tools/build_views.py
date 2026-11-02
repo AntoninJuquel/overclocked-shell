@@ -95,7 +95,7 @@ Arc/Solar/Void/Stasis/Strand/Prismatic."""
     @_player_facing
     def rankings(view: str, type: str | None = None, element: str | None = None, class_type: str | None = None,
                  tag: str | None = None, tier: str | None = None, activity: str | None = None,
-                 name: str | None = None, top: int | None = None, limit: int = 60) -> list[str]:
+                 name: str | None = None, top: int | None = None, limit: int = 25) -> list[str]:
         """Aegis rankings, one line per entry sorted by tier then rank: tier | name | useful columns.
 view: weapons (filters type, element, tier), exotic-weapons, perks, origin-traits, sets, artifact, subclasses
 (filters class_type, tag, tier), aspects (class_type, element, tier), fragments (element, tier), dps-sustained,
@@ -124,7 +124,8 @@ and the frame. Use weapon_options(item_id) to see every column of one weapon."""
     def weapon_options(item_id: str) -> str:
         """Every column of one weapon of the snapshot, to choose its perks and mod: `(selected)` current option,
 `*` enhanced, `✓` cited by the default wishlist, `A` recommended by Aegis, `(not insertable)` refused by Bungie
-for now; the header says whether a full wishlist roll is possible, then one line per Aegis rating."""
+for now; the header says whether a full wishlist roll is possible, then one line per Aegis rating. `suggested`: one
+option per column with choices, from those marks (A and ✓, then A, then ✓, else what is in place)."""
         items, taken = read_snapshot("weapons")
         item_id = item_id.strip('"')
         w = next((x for x in items if x["itemId"] == item_id), None)

@@ -40,3 +40,28 @@ def test_refresh_references_runs_all_by_default(call):
 def test_unknown_source_lists_known(call):
     with pytest.raises(ToolError, match="fake, other"):
         call[0]({"source": "nope"})
+
+
+def test_max_age_days_skips_fresh_data_and_forces_old_data(call, tmp_path, monkeypatch):
+    from datetime import date, timedelta
+
+    from shell.core import paths
+    monkeypatch.setattr(paths, "cache_dir", lambda: tmp_path)
+    run, calls = call
+    (tmp_path / "fake").mkdir()
+    index = tmp_path / "fake" / "index.md"
+
+    def oldest(days):
+        index.write_text(f"Last run: x\nOldest data: {date.today() - timedelta(days=days)}\n", encoding="utf-8")
+
+    oldest(7)
+    assert run({"source": "fake", "max_age_days": 7})["reports"][0]["fresh"] is True and calls == []
+    oldest(8)
+    assert run({"source": "fake", "max_age_days": 7})["reports"][0]["source"] == "fake" and calls == [(True, None)]
+    index.unlink()
+    (tmp_path / "fake" / "rotation.json").write_text("{}", encoding="utf-8")   # no index: the file's date
+    assert run({"source": "fake", "max_age_days": 7})["reports"][0]["fresh"] is True
+    (tmp_path / "fake" / "rotation.json").unlink()
+    calls.clear()
+    run({"source": "fake", "max_age_days": 7})   # nothing yet
+    assert calls == [(True, None)]

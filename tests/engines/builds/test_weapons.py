@@ -164,3 +164,15 @@ def test_aegis_absent_keeps_detail_unchanged(aegis_dir):
     item = {**ITEMS[0], "gearTier": 5, "mod": "", "masterwork": ""}
     lines = weapons.detail(item, {}, (set(), False))
     assert "Aegis" not in lines[0] and not any(" A " in line or line.endswith(" A") for line in lines)
+
+
+def test_suggest_prefers_both_then_aegis_then_wishlist_then_in_place():
+    def col(label, selected, *names, stuck=()):
+        return {"label": label, "selected": selected,
+                "options": [{"name": n, "canInsert": n not in stuck} for n in names]}
+
+    w_ = {"columns": [col("Both", "A", "A", "Aegis", "Both"), col("Aegis", "A", "A", "Wish", "Aegis"),
+                      col("Wish", "A", "A", "Wish"), col("None", "B", "A", "B"), col("One", "A", "A"),
+                      col("Stuck", "A", "A", "Aegis", stuck=("Aegis",))]}
+    assert weapons.suggest(w_, {"both", "wish"}, {"aegis", "both"}) == ["Both", "Aegis", "Wish", "B", "A"]
+    assert weapons.suggest({"columns": [col("X", "B", "A", "B")]}, None, set()) == ["B"]   # no wishlist

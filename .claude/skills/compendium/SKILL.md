@@ -10,16 +10,15 @@ Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md
 The community "Destiny Data Compendium" (Google Sheets) is converted to Markdown in `cache/compendium/`
 (not versioned: its author's content).
 
-1. If `cache/compendium/index.md` is missing or its "Oldest data" is more than 7 days old:
-   `refresh_references(source="compendium", force=true)` (`tabs: ["<tab>"]` for a single tab). Mention to the
+1. `refresh_references(source="compendium", max_age_days=7)` (`tabs: ["<tab>"]` for a single tab). Mention to the
    player any `errors`, and any `unhandled` tab (the author added a tab nobody parses yet).
 2. Read `cache/compendium/index.md`: it gives each tab's file and state. Tell the player about any failed or
    old tab the answer relies on.
-3. Find the entry without loading the whole tab:
-   `grep -n -e "^## " -e "^### <name>" cache/compendium/<file>.md`, then read only that section (up to the next
-   `###` or `##`). The same name can appear in several sections (artifacts, classes, variants) and repeat inside
-   one section (e.g. "Aggressive Frame" ×5, told apart by `detail`; "Air Superiority" ×2, by `group`): check
-   `section` and the other attributes of every hit. Keyword search: `grep -n -i "<word>" cache/compendium/*.md`.
+3. Find the entry: `compendium_lookup(name)` (`file` for one tab). The same name can appear in several sections
+   (artifacts, classes, variants) and repeat inside one section (e.g. "Aggressive Frame" ×5, told apart by `detail`;
+   "Air Superiority" ×2, by `group`): check `section` and the other attributes of every match. `partial: true`: the
+   entry's name is only part of what you asked ("Siphon" for "Arc Siphon"): make sure it is the right thing. Searching
+   a word inside texts, not a name: `grep -n -i "<word>" cache/compendium/*.md`.
 4. Some sections have a `### Notes` entry (author's remarks): read it when it concerns the question (e.g. exotic
    class item perks active only in Prismatic; enhanced mods only on Tier 4-5 weapons; catalyst traits at base
    values).

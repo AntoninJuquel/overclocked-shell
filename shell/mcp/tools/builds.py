@@ -27,6 +27,26 @@ def snapshot(kind: str) -> tuple[list[dict], str]:
         raise ToolError(str(e)) from e
 
 
+def plan_for(ctx: Context, slug: str) -> dict:
+    """Equip plan of a sheet, from the snapshots."""
+    path = sheet_path(slug)
+    armor_items, taken = snapshot("armor")
+    weapon_items, _ = snapshot("weapons")
+    try:
+        s = sheet_mod.load(path)
+        sub = s["subclass"]
+        frag = fragment_stats(sub.get("fragments", []), sub["element"], s["class"])
+        catalog = load_catalog(ctx.manifest)
+        artifacts = artifact.load() if s["intent"].get("artifact") else None
+        plan = equip_mod.build_plan(s, armor_items, weapon_items, frag, date.today(), catalog["subclass"],
+                                    catalog["costs"], artifacts)
+    except ValueError as e:   # SheetError included, missing compendium
+        raise ToolError(str(e)) from e
+    except (KeyError, TypeError, AttributeError) as e:   # malformed snapshot
+        raise ToolError(f"malformed snapshot: {type(e).__name__}: {e}") from e
+    return {**plan, "snapshot": taken}
+
+
 def register(mcp: MCPServer, ctx: Context) -> None:
     @tool(mcp)
     def optimize_build(slug: str, top: int = 5, sets: list[str] | None = None, no_sets: bool = False,
@@ -36,7 +56,8 @@ mods that meet the intent's minimums, then its priorities, then fewest masterwor
 armor snapshot: call refresh_inventory first when the player changed gear. `sets` ["Name:2", ...] or `no_sets`
 replace the intent's sets (recorded in resolved.sets). `write` saves result `pick` into the sheet's `resolved`
 (refused when it misses a minimum unless `force`). `complete: false` = search stopped early, results may not
-be optimal; `feasible: false` = best 3 shown with their `deficit`."""
+be optimal; `feasible: false` = best 3 shown with their `deficit`. `vs_resolved` of a result: what it changes against
+the sheet's `resolved` (`same: true` when nothing; null when the sheet has none)."""
         if top < 1:
             raise ToolError("top must be >= 1")
         path = sheet_path(slug)
@@ -55,6 +76,8 @@ be optimal; `feasible: false` = best 3 shown with their `deficit`."""
             pieces = inventory.load_pieces(items, s["class"], intent["exotic"], catalog["sets"])
             frag = fragment_stats(sub.get("fragments", []), sub["element"], s["class"])
             out = optimize.optimize(pieces, intent, frag, catalog["costs"], s["class"], top)
+            for result in out["results"]:
+                result["vs_resolved"] = optimize.versus_resolved(result, s.get("resolved") or {})
         except ValueError as e:   # SheetError included
             raise ToolError(str(e)) from e
         if not out["complete"]:
@@ -82,19 +105,4 @@ sockets, perks, locks, transfers) without running any. Reads the armor and weapo
 refresh_inventory first. `ready: false` = blocking `problems` (item missing, in the postmaster, equipped on another
 class, invalid subclass or artifact, no resolved armor: re-optimize); `warnings` do not block.
 `expected_armor_stats` = armor totals to check with get_equipped after equipping."""
-        path = sheet_path(slug)
-        armor_items, taken = snapshot("armor")
-        weapon_items, _ = snapshot("weapons")
-        try:
-            s = sheet_mod.load(path)
-            sub = s["subclass"]
-            frag = fragment_stats(sub.get("fragments", []), sub["element"], s["class"])
-            catalog = load_catalog(ctx.manifest)
-            artifacts = artifact.load() if s["intent"].get("artifact") else None
-            plan = equip_mod.build_plan(s, armor_items, weapon_items, frag, date.today(), catalog["subclass"],
-                                        catalog["costs"], artifacts)
-        except ValueError as e:   # SheetError included, missing compendium
-            raise ToolError(str(e)) from e
-        except (KeyError, TypeError, AttributeError) as e:   # malformed snapshot
-            raise ToolError(f"malformed snapshot: {type(e).__name__}: {e}") from e
-        return {**plan, "snapshot": taken}
+        return plan_for(ctx, slug)

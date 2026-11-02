@@ -12,8 +12,8 @@ author's content): `endgame/` (Endgame Analysis) and `boss/` (Boss Damage), one 
 `.json` for code. These are **ratings** (PvE endgame); exact game values come from the Compendium (`compendium`
 skill).
 
-1. If `cache/aegis/index.md` is missing or its "Oldest data" is more than 7 days old:
-   `refresh_references(source="aegis", force=true)` (`tabs: ["<tab>"]` for some tabs). Relay to the player the
+1. `refresh_references(source="aegis", max_age_days=7)` (`tabs: ["<tab>"]` for some tabs): `fresh: true`, nothing
+   to do. After a real refresh: relay to the player the
    `changed` lines that start with a build slug (`<build>: <tab> — <name>: …`, i.e. changes touching their builds
    in `profile/builds/`; detail in `cache/aegis/changes.md`) and offer to re-optimize those builds. `changes.md`
    is replaced by the next refresh that finds changes: relay the "Builds concerned" right after a refresh. Mention any `errors` and `unhandled` tabs.

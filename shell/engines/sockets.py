@@ -38,6 +38,7 @@ def plan_item(item_id: str, character_id: str, name: str, current: list[int], ca
               reusable: dict, requests: list, defs: dict, force: bool) -> tuple[list[dict], list[str]]:
     requested = [(r, None) if isinstance(r, str) else (r["name"], r.get("socketIndex")) for r in requests]
     wanted = {norm(n) for n, _ in requested}
+    aimed_at = {index for _, index in requested if index is not None}
     current_name = lambda i: item_name(defs, current[i]) if current[i] else ""  # noqa: E731
     taken: set[int] = set()
     plans, notes = [], []
@@ -45,6 +46,7 @@ def plan_item(item_id: str, character_id: str, name: str, current: list[int], ca
         key = norm(plug)
         matching = {i: [h for h in hs if norm(item_name(defs, h)) == key] for i, hs in enumerate(cands)}
         matching = {i: hs for i, hs in matching.items() if hs}
+        anywhere = matching
         if index is not None:
             if index not in matching:
                 notes.append(f'socket {index} can\'t take "{plug}"')
@@ -65,7 +67,14 @@ def plan_item(item_id: str, character_id: str, name: str, current: list[int], ca
         if pick is None and EMPTY.match(plug) and free:
             pick = free[0]
         if pick is None:
-            notes.append(f'no free socket left for "{plug}"')
+            # same plugs as asked, in another order among the sockets asked for: nothing to do
+            moved = None if force else next((i for i in anywhere if i in aimed_at and i not in taken
+                                             and current[i] in anywhere[i]), None)
+            if moved is not None:
+                taken.add(moved)
+                notes.append(f"{plug} already in socket {moved}")
+            else:
+                notes.append(f'no free socket left for "{plug}"')
             continue
         taken.add(pick)
         live = [o["plugItemHash"] for o in reusable.get(str(pick), []) if o.get("canInsert") is not False]

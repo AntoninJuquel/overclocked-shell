@@ -125,6 +125,24 @@ def aegis_label(w):
     return "" if b is None else aegis.tier_label(b) + ("+" if len(rows) > 1 else "")
 
 
+def suggest(w, wished, recommended):
+    """Default option of each column with choices, the same every time: cited by Aegis and the wishlist, then by
+    Aegis, then by the wishlist; what is in place first, then column order, among equals. `wished`, `recommended`:
+    perk names as `detail` compares them."""
+    out = []
+    for c in w.get("columns", []):
+        usable = [o for o in c.get("options", []) if o.get("canInsert") is not False]
+        if len(c.get("options", [])) < 2 or not usable:
+            continue
+
+        def score(o):
+            cited = bool(wished) and wishlists.norm_perk(o["name"]) in wished
+            return (norm(o["name"]) in recommended, cited)
+
+        out.append(max(sorted(usable, key=lambda o: o["name"] != c["selected"]), key=score))
+    return [o["name"] for o in out]
+
+
 def detail(w, grades, wishlist=None):
     """Lines of a weapon's detail: header, then one line per column with all its options.
     `wishlist`: result of `wishlist_perks`, None when the wishlist is unavailable."""
@@ -157,6 +175,9 @@ def detail(w, grades, wishlist=None):
                 text += " (not insertable)"
             opts.append(text)
         lines.append(f"  {c['label']}: {' / '.join(opts)}")
+    suggested = suggest(w, wished, recommended)
+    if suggested:
+        lines.append(f"  suggested: {' | '.join(suggested)}")
     if wished is None:
         lines.append("  (wishlist unavailable: run the weapon-triage skill)")
     for r in rated:
