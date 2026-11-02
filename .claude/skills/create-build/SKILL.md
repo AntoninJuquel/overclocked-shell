@@ -82,10 +82,11 @@ files: no round threshold without a reason. Fragment bonuses are counted by the 
 - Weapons, one per slot (`Kinetic`, `Energy`, `Power`): `role` ("add clear", "boss DPS"…) and the ideal weapon in
   theory, respecting [docs/game-rules.md](../../../docs/game-rules.md) (elements per slot, ammo, a single exotic):
   `element`, `type` ("Sniper Rifle"), `ammo` (`Primary`, `Special`, `Heavy`), `exotic` (`true` for an exotic), then
-  what is wanted as options `{"name": "<exact manifest name>"}` (`check_build` adds the hash), alternatives best
-  first: `items` (the weapon; leave it out when only perks matter), `perks` (one list per column, e.g.
-  `[[{"name": "Fluted Barrel"}, {"name": "Arrowhead Brake"}], [{"name": "Demolitionist"}]]`, a catalyst is a column),
-  `mods`, `masterworks` (`"Masterworked: Range"`). `wanted` is free text only for what has no name ("precision
+  what is wanted as exact manifest names, alternatives best first: `items` (the weapon; leave it out when only perks
+  matter), `perks` (one list per column, e.g. `[["Fluted Barrel", "Arrowhead Brake"], ["Demolitionist"]]`, a catalyst
+  is a column),
+  `mods` (always the best for the role when the weapon has a mod socket, `check_build` warns otherwise; exotics have
+  none), `masterworks` (`"Masterworked: Range"`). `wanted` is free text only for what has no name ("precision
   damage perks"). This is what the shared PDF shows, whatever the player owns. Consider an
   exotic weapon: the exotic armor does not take its place. `check_build` refuses an impossible element or ammo
   for the slot, and more than one exotic. Pick the ideal weapon among Aegis's best for the role:
@@ -128,10 +129,10 @@ the player's OK), without `resolved`:
     "artifact": {"name": "NPA Repulsion Regulator", "perks": ["Amped Up", "..."]},
     "weapons": [
       {"slot": "Kinetic", "role": "precision", "element": "Strand", "type": "Sniper Rifle", "ammo": "Special"},
-      {"slot": "Energy", "role": "add clear", "element": "Arc", "exotic": true, "items": [{"name": "Ex Diris"}]},
-      {"slot": "Power", "role": "boss DPS", "type": "Rocket Launcher", "items": [{"name": "Hezen Vengeance"}],
-       "perks": [[{"name": "Bait and Switch"}, {"name": "Explosive Light"}]], "mods": [{"name": "Backup Mag"}],
-       "masterworks": [{"name": "Masterworked: Blast Radius"}]}
+      {"slot": "Energy", "role": "add clear", "element": "Arc", "exotic": true, "items": ["Ex Diris"]},
+      {"slot": "Power", "role": "boss DPS", "type": "Rocket Launcher", "items": ["Hezen Vengeance"],
+       "perks": [["Bait and Switch", "Explosive Light"]], "mods": ["Backup Mag"],
+       "masterworks": ["Masterworked: Blast Radius"]}
     ]
   }
 }
@@ -141,7 +142,8 @@ Then `check_build(slug)` and fix until `ok` is true: it validates the format (an
 checks aspects and fragments for the class and element (no duplicates, no more fragments than slots; the
 expected name is given when only case or prefix differs), the super and abilities, the artifact and its perks
 (column rules), the intent weapons against the manifest (a perk the weapon cannot roll, two perks given as one
-column; it fills in the hashes), and regenerates the `.md`. It accepts empty fragment slots: make sure they are all filled. A super
+column), rebuilds the sheet's `hashes` table (the hash of every name: leave it to the tool), and regenerates the
+`.md`. It accepts empty fragment slots: make sure they are all filled. A super
 or ability missing from the sheet stays as in game at equip time.
 
 ## 7. Armor

@@ -19,4 +19,7 @@ Voice: speak as the player's Ghost — see [ghost-voice.md](../../ghost-voice.md
    - the artifact and set bonuses: in the notes too;
    - any `warnings` (a piece no longer in the inventory, an unknown mod: left out, named in the notes).
    Opening the link in DIM shows the loadout; nothing is equipped until the person applies it in DIM.
-5. **Never post the link or the PDF anywhere yourself** (Discord, Reddit, email): hand them to the player.
+5. **On request, give the file path of:** `build_png(slug)`, the same page as an image; `build_html(slug)`, a web page
+   showing it, with clickable icons; `build_yaml(slug)`, the build as designed as text, without the player's own
+   items.
+6. **Never post the link or any of these files anywhere yourself** (Discord, Reddit, email): hand them to the player.

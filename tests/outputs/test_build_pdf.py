@@ -84,11 +84,11 @@ def test_footer(icons):
 def substitute_sheet():
     s = resolved_sheet()
     s["intent"]["weapons"] = [
-        {"slot": "Kinetic", "role": "add clear", "items": [{"name": "DECATUR 02", "hash": 1}],
-         "perks": [[{"name": "Physic", "hash": 2}, {"name": "Attrition Orbs", "hash": 3}], [{"name": "Reciprocity"}]],
-         "mods": [{"name": "Ballistics"}], "masterworks": [{"name": "Masterworked: Range"}]},
-        {"slot": "Power", "role": "boss DPS", "type": "Machine Gun", "items": [{"name": "Song of Ir Yut"}]},
-        {"slot": "Energy", "role": "roam", "type": "Sniper Rifle", "perks": [[{"name": "Repulsor Brace"}]]},
+        {"slot": "Kinetic", "role": "add clear", "items": ["DECATUR 02"],
+         "perks": [["Physic", "Attrition Orbs"], ["Reciprocity"]],
+         "mods": ["Ballistics"], "masterworks": ["Masterworked: Range"]},
+        {"slot": "Power", "role": "boss DPS", "type": "Machine Gun", "items": ["Song of Ir Yut"]},
+        {"slot": "Energy", "role": "roam", "type": "Sniper Rifle", "perks": [["Repulsor Brace"]]},
     ]
     s["resolved"]["weapons"].append({"slot": "Power", "itemId": "8", "name": "Corrective Measure", "why": "Stand-in.",
                                      "mod": "Backup Mag", "perks": ["Killing Tally"]})

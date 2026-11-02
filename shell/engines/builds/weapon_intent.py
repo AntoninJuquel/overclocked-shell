@@ -1,7 +1,7 @@
-"""An intent's weapons normalized against the manifest: every named option gets its hash, perks are checked per column.
+"""An intent's weapons checked against the manifest: every named option is one the weapon can roll, perks per column.
 
-Fields of `intent.weapons[]`, each option being {"name", "hash"} (the author writes the name, `normalize` the hash),
-alternatives best first: `items`, `perks` (one list per column), `mods`, `masterworks`.
+Fields of `intent.weapons[]`, exact manifest names, alternatives best first: `items`, `perks` (one list per column),
+`mods`, `masterworks`. Their hashes go in the sheet's `hashes` table ("item:<name>", "perk:<name>").
 """
 from shell.engines.share import _copy_key, _is_armor_mod, _category, _name
 from shell.engines.sockets import candidates
@@ -9,13 +9,27 @@ from shell.engines.sockets import candidates
 FLAT_FIELDS = ("mods", "masterworks")
 
 
-def options(w: dict) -> list[dict]:
+def options(w: dict) -> list[str]:
     """Every plug option an intent weapon names (perks, mods, masterworks)."""
     return [*(o for column in w.get("perks") or [] for o in column), *(o for k in FLAT_FIELDS for o in w.get(k) or [])]
 
 
 def is_named(w: dict) -> bool:
     return bool(w.get("items") or options(w))
+
+
+def missing_mods(weapons: list[dict], defs: dict, plug_sets: dict, hashes: dict) -> list[str]:
+    """One line per checked weapon that can take a mod but names none (exotics have no mod socket)."""
+    out = []
+    for w in weapons:
+        item = next((n for n in w.get("items") or [] if f"item:{n}" in hashes), None)
+        if item and not w.get("mods") and any(
+                (defs.get(str(h)) or {}).get("itemTypeDisplayName") == "Weapon Mod"
+                for socket in candidates(defs.get(str(hashes[f"item:{item}"])) or {}, {}, {},
+                                         lambda p: plug_sets.get(str(p)))
+                for h in socket):
+            out.append(f"{w['slot']}: {item} has a mod socket but no mod is chosen")
+    return out
 
 
 def _by_name(hashes, defs):
@@ -30,37 +44,35 @@ def _by_name(hashes, defs):
 
 
 def _fit(w, weapon, tables):
-    """Writes the hashes of `w`'s options found in the sockets `tables` of `weapon`; returns the problems."""
-    problems, used = [], set()
+    """({option: hash} of `w`'s options found in the sockets `tables` of `weapon`, problems)."""
+    found, problems, used = {}, [], set()
     slot = w["slot"]
 
     def sockets_of(option):
-        found = {i for i, t in enumerate(tables) if option["name"] in t}
-        if not found:
-            problems.append(f"{slot}: {option['name']} is not an option of {weapon}")
-        return found
+        where = {i for i, t in enumerate(tables) if option in t}
+        if not where:
+            problems.append(f"{slot}: {option} is not an option of {weapon}")
+        return where
 
     for column in w.get("perks") or []:
-        found = [sockets_of(o) for o in column]
-        if not all(found):
+        where = [sockets_of(o) for o in column]
+        if not all(where):
             continue
-        free = set.intersection(*found) - used
+        free = set.intersection(*where) - used
         if not free:
-            names = " / ".join(o["name"] for o in column)
-            problems.append(f"{slot}: {names}: no free column of {weapon} has them all")
+            problems.append(f"{slot}: {' / '.join(column)}: no free column of {weapon} has them all")
             continue
         used.add(min(free))
-        for o in column:
-            o["hash"] = tables[min(free)][o["name"]]
+        found.update({o: tables[min(free)][o] for o in column})
     for o in (o for k in FLAT_FIELDS for o in w.get(k) or []):
-        found = sockets_of(o)
-        if found:
-            o["hash"] = tables[min(found)][o["name"]]
-    return problems
+        where = sockets_of(o)
+        if where:
+            found[o] = tables[min(where)][o]
+    return found, problems
 
 
-def normalize(weapons: list[dict], defs: dict, plug_sets: dict) -> list[str]:
-    """Fills the hashes of `intent.weapons` in place; returns the problems (unknown name, option the weapon cannot
+def normalize(weapons: list[dict], defs: dict, plug_sets: dict, hashes: dict) -> list[str]:
+    """Writes the hashes of `intent.weapons` in `hashes`; returns the problems (unknown name, option the weapon cannot
     roll). A weapon without `items` only names perks: any plug of that name. `defs`: DestinyInventoryItemDefinition,
     `plug_sets`: DestinyPlugSetDefinition, both by hash string."""
     copies, plugs = {}, []
@@ -72,29 +84,29 @@ def normalize(weapons: list[dict], defs: dict, plug_sets: dict) -> list[str]:
     plugs = _by_name(sorted(plugs), defs)
     problems = []
     for w in weapons:
-        for o in w.get("items") or []:
-            if o["name"] in copies:
-                o["hash"] = int(min(copies[o["name"]], key=lambda hd: _copy_key(*hd))[0])
+        for n in w.get("items") or []:
+            if n in copies:
+                hashes[f"item:{n}"] = int(min(copies[n], key=lambda hd: _copy_key(*hd))[0])
             else:
-                problems.append(f"{w['slot']}: unknown weapon: {o['name']}")
-        known = next((o["name"] for o in w.get("items") or [] if o["name"] in copies), None)
+                problems.append(f"{w['slot']}: unknown weapon: {n}")
+        known = next((n for n in w.get("items") or [] if n in copies), None)
         if known is None:
             if not w.get("items"):
                 for o in options(w):
-                    if o["name"] in plugs:
-                        o["hash"] = plugs[o["name"]]
+                    if o in plugs:
+                        hashes[f"perk:{o}"] = plugs[o]
                     else:
-                        problems.append(f"{w['slot']}: unknown perk or mod: {o['name']}")
+                        problems.append(f"{w['slot']}: unknown perk or mod: {o}")
             continue
         fits = []
         # several copies of a name (reissues): the first that can roll everything the intent names
         for h, d in sorted(copies[known], key=lambda hd: _copy_key(*hd)):
-            tables = [_by_name(hashes, defs) for hashes in candidates(d, {}, {}, lambda p: plug_sets.get(str(p)))]
-            fits.append((h, tables, _fit(w, known, tables)))
+            tables = [_by_name(socket, defs) for socket in candidates(d, {}, {}, lambda p: plug_sets.get(str(p)))]
+            fits.append((h, *_fit(w, known, tables)))
             if not fits[-1][2]:
                 break
-        h, tables, misfit = next((f for f in fits if not f[2]), fits[0])
-        _fit(w, known, tables)
-        w["items"][[o["name"] for o in w["items"]].index(known)]["hash"] = int(h)
+        h, found, misfit = next((f for f in fits if not f[2]), fits[0])
+        hashes[f"item:{known}"] = int(h)
+        hashes.update({f"perk:{o}": v for o, v in found.items()})
         problems += misfit
     return problems
