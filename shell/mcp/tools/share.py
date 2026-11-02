@@ -8,7 +8,6 @@ from mcp.server.mcpserver.exceptions import ToolError
 from shell.context import Context
 from shell.core.bungie import BungieApiError
 from shell.engines import build_icons, lexicon, share
-from shell.engines.builds.snapshot import read_snapshot
 from shell.engines.builds import sheet as sheet_mod
 from shell.mcp import tool
 from shell.mcp.tools.builds import sheet_path, snapshot
@@ -27,43 +26,42 @@ def _load(slug):
 def register(mcp: MCPServer, ctx: Context) -> None:
     @tool(mcp)
     def build_pdf(slug: str) -> dict:
-        """PDF of build sheet `slug` (profile/builds/<slug>.pdf), A4 landscape in the in-game layout (subclass,
-weapons, armor, artifact, stats, build text, set bonus perks) with the manifest icons, cached in cache/icons/ (the first export
-downloads them; later ones work offline). The Markdown view is regenerated first. Reads the inventory snapshot
-(call refresh_inventory first). Returns pdf (path) and warnings (no snapshot, Bungie unreachable, missing icons,
+        """PDF of build sheet `slug` (profile/builds/<slug>.pdf), A4 landscape in the in-game layout, showing the build
+as designed, never what the inventory reached (subclass, wanted weapons and armor, artifact, stat targets, set bonus
+as the game's tooltip), with the manifest icons, cached in cache/icons/ (the first export downloads them; later ones work
+offline), each item's icon linking to its light.gg page (not offline). The Markdown view is regenerated first. Returns pdf (path) and warnings (Bungie unreachable, missing icons,
 no Unicode font: symbols simplified)."""
         path, s = _load(slug)
+        language = "en"
         try:
+            language = ctx.settings.language
             ctx.lexicon   # the player's language for the .md and the PDF
         except (BungieApiError, httpx.HTTPError, OSError, ValueError) as e:
             warnings_lexicon = [f"names stay in the last cached language ({e})"]
         else:
             warnings_lexicon = []
         sheet_mod.save(path, s)   # regenerates the .md view
-        warnings, items = warnings_lexicon, {}
-        for kind in ("armor", "weapons"):
-            try:
-                items[kind] = read_snapshot(kind)[0]
-            except (FileNotFoundError, ValueError):   # absent, or corrupt / partial JSON
-                items[kind] = []
-                warnings.append(f"no {kind} snapshot: item icons by name (call refresh_inventory)")
+        warnings, hashes = warnings_lexicon, {}
         try:
             tables = [ctx.manifest.table(name, keep=False) for name in (
                 "DestinyInventoryItemDefinition", "DestinySocketTypeDefinition", "DestinyStatDefinition",
                 "DestinyEquipableItemSetDefinition", "DestinySandboxPerkDefinition")]
+            local_perks = lexicon.local_table(ctx.manifest, language, "DestinySandboxPerkDefinition")
         except (BungieApiError, httpx.HTTPError, OSError, ValueError):   # ValueError: corrupt cached table
-            tables, set_perks = None, None   # shortcut: no set perk lines offline; cache them if players ask
+            tables, armor, set_perks = None, None, None   # shortcut: no set perk lines or links offline; cache them if players ask
             refs = {k: r for k, r in icons.indexed().items() if (icons.folder() / PurePosixPath(r).name).is_file()}
             warnings.append("Bungie unreachable: icons from the cache only")
         if tables:
-            refs, more = build_icons.refs(s, *tables[:3], items["armor"], items["weapons"], *tables[3:])
-            set_perks = build_icons.set_perks(s, *tables[3:])[0]   # its warnings come with refs
+            refs, more = build_icons.refs(s, *tables, hashes=hashes)
+            armor = build_icons.intent_armor(s, tables[0], tables[3])
+            set_perks = build_icons.set_perks(s, *tables[3:], local_perks)[0]   # its warnings come with refs
             warnings += [w for w in more if not w.startswith(("icon not found:", "no icon:"))]  # reported collapsed
         files, more = icons.local(refs)
         warnings += more
         pdf = path.with_suffix(".pdf")
         missing = []
-        for w in pdf_out.write(pdf, s, files, sheet_mod.needs_for(slug), set_perks, lexicon.current()):
+        links = {k: pdf_out.LIGHT_GG.format(lang=language, hash=h) for k, h in hashes.items()}
+        for w in pdf_out.write(pdf, s, files, armor, set_perks, lexicon.current(), links):
             (missing if w.startswith("no icon:") else warnings).append(w)
         if missing:   # one line, not one per icon
             names = ", ".join(m.removeprefix("no icon: ") for m in missing[:3])

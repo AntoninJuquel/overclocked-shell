@@ -77,6 +77,14 @@ def load(en_manifest, lang: str) -> dict[str, str]:
     return terms
 
 
+def local_table(en_manifest, lang: str, name: str) -> dict:
+    """Manifest table `name` in `lang`, for texts the terms don't hold (descriptions)."""
+    if lang == "en":
+        return en_manifest.table(name, keep=False)
+    from shell.core.manifest import Manifest
+    return Manifest(en_manifest.client, en_manifest.root.parent, lang).table(name, keep=False)
+
+
 def _write(data):
     file = _file()
     file.parent.mkdir(parents=True, exist_ok=True)

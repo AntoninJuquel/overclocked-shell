@@ -113,7 +113,66 @@
         "element": "Stasis",
         "type": "Auto Rifle",
         "ammo": "Primary",
-        "wanted": "DECATUR 02: Full Bore, Accurized Rounds, Physic / Crystalline Corpsebloom / Attrition Orbs + Reciprocity / Master of Arms / Redirection, MW Range"
+        "items": [
+          {
+            "name": "DECATUR 02",
+            "hash": 1850748385
+          }
+        ],
+        "perks": [
+          [
+            {
+              "name": "Full Bore",
+              "hash": 202670084
+            }
+          ],
+          [
+            {
+              "name": "Accurized Rounds",
+              "hash": 3142289711
+            }
+          ],
+          [
+            {
+              "name": "Physic",
+              "hash": 2980589453
+            },
+            {
+              "name": "Crystalline Corpsebloom",
+              "hash": 2922950962
+            },
+            {
+              "name": "Attrition Orbs",
+              "hash": 243981275
+            }
+          ],
+          [
+            {
+              "name": "Master of Arms",
+              "hash": 3081867624
+            },
+            {
+              "name": "Reciprocity",
+              "hash": 692399809
+            },
+            {
+              "name": "Redirection",
+              "hash": 3201496230
+            }
+          ]
+        ],
+        "mods": [
+          {
+            "name": "Ballistics",
+            "hash": 3417406043
+          }
+        ],
+        "masterworks": [
+          {
+            "name": "Masterworked: Range",
+            "hash": 2697220197
+          }
+        ]
       },
       {
         "slot": "Energy",
@@ -122,7 +181,12 @@
         "type": "Auto Rifle",
         "ammo": "Special",
         "exotic": true,
-        "wanted": "Choir of One"
+        "items": [
+          {
+            "name": "Choir of One",
+            "hash": 3698448090
+          }
+        ]
       },
       {
         "slot": "Power",
@@ -130,7 +194,48 @@
         "element": "Arc",
         "type": "Machine Gun",
         "ammo": "Heavy",
-        "wanted": "Song of Ir Yût: Demolitionist + Master of Arms (or Mega Kill Clip), Arrowhead Brake, Alloy Magazine, MW Reload"
+        "items": [
+          {
+            "name": "Song of Ir Yût",
+            "hash": 2828278545
+          }
+        ],
+        "perks": [
+          [
+            {
+              "name": "Arrowhead Brake",
+              "hash": 839105230
+            }
+          ],
+          [
+            {
+              "name": "Alloy Magazine",
+              "hash": 1431678320
+            }
+          ],
+          [
+            {
+              "name": "Demolitionist",
+              "hash": 3523296417
+            }
+          ],
+          [
+            {
+              "name": "Master of Arms",
+              "hash": 3081867624
+            },
+            {
+              "name": "Mega Kill Clip",
+              "hash": 2305480722
+            }
+          ]
+        ],
+        "masterworks": [
+          {
+            "name": "Masterworked: Reload Speed",
+            "hash": 758092021
+          }
+        ]
       }
     ]
   }
