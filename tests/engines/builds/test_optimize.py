@@ -327,3 +327,16 @@ def test_set_override_parses():
                                                                       {"set": "B", "pieces": 2}]
     assert optimize.parse_set_override(None, True) == []
     assert optimize.parse_set_override(None, False) is None
+
+
+def test_versus_resolved():
+    piece = {"slot": "Helmet", "itemId": "1", "name": "Hood", "stat_mod": "Grenade Mod", "tuning": None, "mods": []}
+    result = {"armor": [piece], "stats": {"Grenade": 100, "Super": 50}}
+    assert optimize.versus_resolved(result, {}) is None
+    resolved = {"armor": [piece], "stats": {"Grenade": 100, "Super": 50}}
+    assert optimize.versus_resolved(result, resolved) == {"same": True, "pieces": [], "mods": [], "stats": {}}
+    other = {**piece, "itemId": "2", "name": "Mask"}
+    out = optimize.versus_resolved(result, {"armor": [other], "stats": {"Grenade": 90, "Super": 50}})
+    assert out["pieces"] == [{"slot": "Helmet", "from": "Mask", "to": "Hood"}] and out["stats"] == {"Grenade": 10}
+    out = optimize.versus_resolved(result, {"armor": [{**piece, "stat_mod": None}], "stats": result["stats"]})
+    assert not out["same"] and out["mods"][0]["slot"] == "Helmet" and out["pieces"] == []

@@ -61,7 +61,7 @@ files: no round threshold without a reason. Fragment bonuses are counted by the 
 
 ## 5. Constraints
 - Sets: compare **all** `armor-perks.md` bonuses useful to the concept and activity (`crucible` attribute for
-  PvP), with their Aegis tier (`rankings(view="sets")`), then keep the best combination (4 pieces, 2 + 2, 2 alone
+  PvP), with their Aegis tier (`rankings(view="sets", limit=200)`), then keep the best combination (4 pieces, 2 + 2, 2 alone
   or none), without looking at owned pieces: `{"set": "<name>", "pieces": 2|4}`, at most 4 pieces in all (the
   exotic is not part of them). Leaving pieces free is a choice to justify (the missing bonus is worth less than
   the stat margin). Name as in the manifest, sometimes with a "Set" suffix the Compendium lacks ("Smoke Jumper
@@ -174,8 +174,9 @@ Then, for each chosen weapon, its **perks** and **mod**: `weapon_options(item_id
 magazine, battery, traits…) with all their options: `(selected)` = in place, `*` = enhanced, `✓` = cited by the
 wishlist for this weapon, `A` = recommended by Aegis (and, at the end, its tier, recommended masterwork and notes).
 - `perks`: for **every** column with several options (Tier 5 weapons: often 2 barrel and magazine options and 3
-  per trait), the best option for the weapon's role in this build (effects in `weapon-perks.md`), considering the
-  intent's `perks` and the `✓`; exact option names, at most one per column, never one marked "not insertable".
+  per trait), start from the `suggested` line (one option per column, from Aegis and the wishlist) and only move away
+  from it when the weapon's role in this build or the intent's `perks` call for another (effects in
+  `weapon-perks.md`), saying why in `why`; exact option names, at most one per column, never one marked "not insertable".
   Also list options already in place that we keep: `perks` describes the full wanted configuration. Crafted
   weapon: one option per column, nothing to choose.
 - `mod`: the best weapon mod for the role ("Weapon Mods" section of `weapon-perks.md`: Backup Mag, Targeting

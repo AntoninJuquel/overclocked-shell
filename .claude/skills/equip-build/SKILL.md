@@ -12,11 +12,8 @@ Nothing is ever dismantled. No action in game without the player's explicit "yes
 
 1. **Sheet**: pick the sheet (list `profile/builds/*.json` if the player doesn't name it).
 2. **Plan**: right before, `refresh_inventory` — the plan computes mod removals from the snapshot. Then
-   `equip_plan(slug)` (nothing is executed). Keys: `ready`, `problems`, `warnings`, `character`, `equip`,
-   `subclass` (`element`, `item`, `plugs`), `armor_sockets` (`{itemId, slot, name, plugs}`), `weapon_perks`
-   (`{itemId, name, select}`: options to select), `weapon_sockets` (`{itemId, name, plugs}`: weapon mod to
-   insert), `artifact` (`{name, plugs}` or `null`), `lock`, `masterwork_todo`, `transfers`,
-   `expected_armor_stats`, `snapshot`.
+   `equip_plan(slug)` (nothing is executed): `ready`, `problems`, `warnings`, what will be written,
+   `masterwork_todo`, `transfers`, `expected_armor_stats`, `snapshot`.
    - `ready: false` (`problems`): equip nothing. Item missing or no resolved armor → `optimize-build`; piece in
      the postmaster → `pull_from_postmaster` with the player's OK (`character` = the class in the armor row's
      `location` `<Class> (Postmaster)`, lowercase), then refresh and rerun; "equipped on <Class>" → the player
@@ -35,39 +32,25 @@ Nothing is ever dismantled. No action in game without the player's explicit "yes
      the active ones before the subclass change. Others: result more than 7 days old (offer `optimize-build`),
      no weapons, an exotic that may block, masterworks to do, missing fragments.
 3. **Character** (`character` from the plan): in orbit, a social space or offline; otherwise wait.
-   `get_equipped(character)` → `subclass.itemId` when the equipped subclass is `subclass.item`, else the id of
-   that item in `other_subclasses`. If `artifact`: the id of the artifact named `artifact.name` — `get_equipped().artifact` when it is the one
-   equipped, else its entry in `other_artifacts` (each character has every artifact); it is then equipped with
-   the other items through `equip_items`.
-4. **Preview** (`dry_run: true`, no effect):
-   - `equip_items`: `character`, `item_ids` = `equip` + the subclass id + the artifact id when it is not
-     equipped yet (12 at most). A weapon "in the
-     postmaster" (weapon rows don't mark it): pull it before asking for the "yes", with a dry run then the player's OK
-     (`pull_from_postmaster`, `character` = the class `weapon_candidates` gives as its location, lowercase), then
-     redo this dry run;
-   - `set_sockets` subclass, alone: `changes: [{itemId: <subclass id>, plugs: subclass.plugs}]`. Fragments come
-     with their `socketIndex` (active sockets, from the manifest);
-   - `set_sockets` artifact, separate call (if `artifact`): `[{itemId: <artifact id>, plugs: artifact.plugs}]`;
-   - `set_sockets` armor, separate call: `{itemId, plugs}` of each `armor_sockets` entry; limits: 10 changes,
-     30 socket actions per call;
-   - `set_perks` (if `weapon_perks`): `changes: [{itemId, select}]`;
-   - `set_sockets` weapons, separate call (if `weapon_sockets`): `{itemId, plugs}` of each entry; a refused mod
-     (not unlocked, Enhanced on a weapon below Tier 4, Adept on a non-adept weapon): propose a substitute from
-     the Compendium, without executing;
-   - `set_lock`: `item_ids: lock`, `locked: true`, **`dry_run: true`** (it acts by default).
-   Summarize for the player: items equipped, transfers (`transfers`), subclass, artifact and its perks, mods per
-   piece (added and removed), each weapon's perks and mod, locks, and any refused plug (not unlocked →
-   substitute via the Compendium, without executing). Normal notes: "<plug> already in socket N"; removals with
-   no effect (an empty socket emptied again, extra `Empty Fragment Socket`). A piece still in the vault is read
-   on the first character: if its dry run refuses a plug, redo it after `equip_items`. A legacy piece in
-   `masterwork_todo` (energy counted as 10): the player masterworks it in game before the armor `set_sockets`.
-5. **Run**, after the "yes", in this order, each with `dry_run: false`: `equip_items`; `set_sockets` subclass;
-   `set_sockets` artifact; `set_sockets` armor; `set_perks`; `set_sockets` weapons; `set_lock`. `equip_items` may
-   send an unrequested item to the vault to make room: say so. If `equip_items` partly fails: stop, say what was
-   done and ask the player before going on. An energy failure on `set_sockets` is a plan bug: stop and report
-   it, no substitute. A failure on a no-effect removal doesn't matter. Everything is reversible, no automatic
-   rollback. Don't rerun `set_sockets` right away: Bungie's reads lag 1–2 min; wait or check with
-   `get_equipped`.
+4. **Preview**: `equip_build(slug)` (no effect; it refuses a snapshot over 15 minutes old: `refresh_inventory`, then
+   again). `ready: false`: as in step 2. `stopped_at: "equip"` with `blocked`: a weapon "in the postmaster" (weapon rows
+   don't mark it): pull it before asking for the "yes", with a dry run then the player's OK (`pull_from_postmaster`,
+   `character` = the class `weapon_candidates` gives as its location, lowercase), then `refresh_inventory` and preview
+   again; no `confirm` comes back until this is solved.
+   Summarize `steps` for the player: items equipped, transfers (`transfers`), subclass, artifact and its perks, mods per
+   piece (added and removed), each weapon's perks and mod, locks, and everything in `refused` (not unlocked, Enhanced
+   on a weapon below Tier 4, Adept on a non-adept weapon → propose a substitute via the Compendium, without executing).
+   Normal notes: "<plug> already in socket N"; removals with no effect (an empty socket emptied again, extra `Empty
+   Fragment Socket`). A piece still in the vault is read on the first character, so `refused` may name plugs it can
+   take once equipped: say so. A legacy piece in `masterwork_todo` (energy counted as 10): the player masterworks it
+   in game before the run.
+5. **Run**, after the "yes": `equip_build(slug, dry_run=false, confirm=<the preview's confirm>)`. It runs the items,
+   subclass, artifact, armor mods, weapon perks, weapon mods, then locks, and stops at the first real failure:
+   `stopped_at` and `blocked` say where and why, `steps` what was done. Say all of it and ask the player before going
+   on; an energy failure on armor mods is a plan bug: report it, no substitute. Refused with "No preview": the plan
+   changed, preview again and get a new "yes". `equip` may send an unrequested item to the vault to make room (`notes`
+   in its `moves`): say so. Everything is reversible, no automatic rollback. Don't run it again right away: Bungie's
+   reads lag 1–2 min; wait or check with `get_equipped`. Then `refresh_inventory`.
 6. **Check**: `get_equipped`; `armor_totals` is the armor alone, to compare with `expected_armor_stats`
    (fragments already excluded). Expected gaps: masterworks not done yet (`masterwork_todo`, lower stats), a
    lagging read (read again once after 1–2 min). Also check subclass, aspects, fragments, mods, weapon perks and

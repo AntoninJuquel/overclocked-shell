@@ -83,3 +83,15 @@ def test_apply_stops_on_not_in_orbit():
     results = apply(actions, [change([1]), change([2], 1)])
     assert results[0].startswith("failed: character not in orbit") and results[1] == "not attempted: go to orbit"
     assert len(actions.posts) == 1
+
+
+def test_same_plugs_in_another_order_is_nothing_to_do():
+    defs = {"plugs": {str(h): {"n": n, "t": "", "p": ""} for h, n in {1: "A", 2: "B", 3: "C", 9: "Junk"}.items()},
+            "weapons": {}, "gear": {}, "misc": {}}
+    cands = [[1, 2, 3, 9]] * 3
+    aimed = [{"name": "A", "socketIndex": 0}, {"name": "B", "socketIndex": 1}, {"name": "C", "socketIndex": 2}]
+    plans, notes = plan_item("i", "c", "n", [3, 1, 2], cands, {}, aimed, defs, False)
+    assert plans == [] and not [n for n in notes if "no free socket" in n]
+    # outside the sockets asked for, a plug is not "already there": it must move (the sockets may be disabled)
+    plans, notes = plan_item("i", "c", "n", [9, 9, 1], cands, {}, aimed[:2], defs, False)
+    assert ("A", 0) in [(p["to"], p["socketIndex"]) for p in plans]

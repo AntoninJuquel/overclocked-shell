@@ -232,6 +232,25 @@ def parse_set_override(specs, no_sets):
     return sets
 
 
+def versus_resolved(result, resolved):
+    """What `result` changes against the sheet's `resolved`, None when it has no armor: `pieces` replaced, `mods`
+    changed on a kept piece, `stats` gained or lost, `same` when nothing."""
+    old = {a["slot"]: a for a in resolved.get("armor") or []}
+    if not old:
+        return None
+    setup = lambda a: {k: a.get(k) for k in ("stat_mod", "tuning", "mods")}  # noqa: E731
+    pieces, mods = [], []
+    for a in result["armor"]:
+        before = old.get(a["slot"])
+        if before is None or before["itemId"] != a["itemId"]:
+            pieces.append({"slot": a["slot"], "from": before and before["name"], "to": a["name"]})
+        elif setup(before) != setup(a):
+            mods.append({"slot": a["slot"], "from": setup(before), "to": setup(a)})
+    was = resolved.get("stats") or {}
+    stats = {s: v - was.get(s, 0) for s, v in result["stats"].items() if v != was.get(s, 0)}
+    return {"same": not (pieces or mods or stats), "pieces": pieces, "mods": mods, "stats": stats}
+
+
 def write_result(path, result, today=None, sets=None):
     """Writes one combination into `resolved` (armor + stats + date) without touching the intent or weapons.
 

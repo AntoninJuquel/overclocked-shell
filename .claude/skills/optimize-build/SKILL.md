@@ -12,8 +12,8 @@ A build sheet = `profile/builds/<slug>.json` (source of truth) + `profile/builds
 roles): never change it here without their OK. `resolved` is the last dated result.
 
 1. Pick the sheet (list `profile/builds/*.json` if the player doesn't name it) and read its `.md`.
-2. Refresh the data: `refresh_inventory`. If the Compendium is more than 7 days old, follow the `compendium`
-   skill (fragment stat bonuses). If Aegis is more than 7 days old, follow the `aegis` skill; in any case read
+2. Refresh the data: `refresh_inventory`, then step 1 of the `compendium` skill (fragment stat bonuses) and of the
+   `aegis` skill; in any case read
    `cache/aegis/changes.md`: a "Builds concerned" line for this sheet (tier or rank change of a weapon, aspect,
    fragment, set or artifact perk) goes to the player, with the best options for the same role (`rankings`).
    Never change the intent without their OK.
@@ -31,8 +31,8 @@ roles): never change it here without their OK. `resolved` is the last dated resu
      result: `write` refuses it; pass `force` only with the player's explicit OK, once the deficit was shown.
    - The "snapshot without the tuning stat" warning: tunings are ignored, so stats and ranking are underestimated. Say it clearly
      before concluding anything.
-4. Compare #1 with `resolved`: replaced pieces, gain or loss per stat, utility mods per piece (`mods`),
-   masterworks to do, transfers. If nothing changes, say so and stop. Energy: each result gives `energy_left`
+4. Show what #1 changes, from its `vs_resolved`: replaced pieces (`pieces`), gain or loss per stat (`stats`), mods
+   changed on kept pieces (`mods`); then masterworks to do and transfers. `same: true`: say so and stop. Energy: each result gives `energy_left`
    per piece. A piece > 0, or a sheet with no `intent.armor_mods_fill`: propose filler mods (`create-build`
    skill, step 5: duplicates allowed, various costs, effects in `armor-mods.md`); with the player's OK add them
    to the intent, `check_build(slug)`, then rerun step 3.

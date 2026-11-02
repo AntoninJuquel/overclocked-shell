@@ -11,6 +11,11 @@ from shell.mcp import tool
 MAX_IDS = 50
 
 
+def change_locks(ctx: Context, item_ids: list[str], locked: bool, dry_run: bool) -> dict:
+    membership, locations, class_of = load_locations(ctx.client, ctx.defs)
+    return lock_items(Actions(ctx.client, membership), locations, class_of, item_ids, locked, dry_run)
+
+
 def register(mcp: MCPServer, ctx: Context) -> None:
     @tool(mcp)
     def set_lock(item_ids: list[str], locked: bool, dry_run: bool = False) -> dict:
@@ -18,5 +23,4 @@ def register(mcp: MCPServer, ctx: Context) -> None:
         Items already in that state are left alone. Call refresh_inventory afterwards before reading locks."""
         if len(item_ids) > MAX_IDS:
             raise ToolError(f"At most {MAX_IDS} items per call.")
-        membership, locations, class_of = load_locations(ctx.client, ctx.defs)
-        return lock_items(Actions(ctx.client, membership), locations, class_of, item_ids, locked, dry_run)
+        return change_locks(ctx, item_ids, locked, dry_run)
