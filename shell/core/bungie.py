@@ -27,24 +27,26 @@ class BungieClient:
         self.http = http or httpx.Client(timeout=60)
         self.sleep = sleep
 
-    def get(self, path: str, params: dict | None = None, auth: bool = False) -> Any:
-        return self._call("GET", path, auth, params=params)
+    def get(self, path: str, params: dict | None = None, auth: bool = False, retries: int = MAX_RETRIES,
+            **request) -> Any:
+        """`request`: extra httpx options, e.g. `timeout`."""
+        return self._call("GET", path, auth, retries, params=params, **request)
 
     def post(self, path: str, body: dict) -> Any:
-        return self._call("POST", path, True, json=body)
+        return self._call("POST", path, True, MAX_RETRIES, json=body)
 
     def download(self, url: str) -> Any:
         """GET a raw JSON document (manifest tables), with the same retries and errors as API calls."""
-        return self._send("GET", url, {}, envelope=False)
+        return self._send("GET", url, {}, False, MAX_RETRIES)
 
-    def _call(self, method: str, path: str, auth: bool, **kwargs) -> Any:
+    def _call(self, method: str, path: str, auth: bool, retries: int, **kwargs) -> Any:
         headers = {"X-API-Key": self.settings.api_key}
         if auth:
             headers["Authorization"] = f"Bearer {self.oauth.access_token()}"
-        return self._send(method, API + path, headers, envelope=True, **kwargs)
+        return self._send(method, API + path, headers, True, retries, **kwargs)
 
-    def _send(self, method: str, url: str, headers: dict, envelope: bool, **kwargs) -> Any:
-        for attempt in range(MAX_RETRIES + 1):
+    def _send(self, method: str, url: str, headers: dict, envelope: bool, retries: int, **kwargs) -> Any:
+        for attempt in range(retries + 1):
             wait = 2 ** attempt
             try:
                 res = self.http.request(method, url, headers=headers, **kwargs)
@@ -69,6 +71,6 @@ class BungieClient:
                     error = BungieApiError(f"Bungie HTTP {res.status_code}: unexpected response")
                     if res.status_code < 500 and res.status_code != 429:
                         raise error
-            if attempt == MAX_RETRIES:
+            if attempt == retries:
                 raise error
             self.sleep(wait)

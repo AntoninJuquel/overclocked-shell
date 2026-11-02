@@ -46,6 +46,31 @@ def test_translator_whole_words_longest_first_and_caps():
     assert lexicon.translator({})("Great Hunt") == "Great Hunt"
 
 
+def test_translator_edges():
+    tr = lexicon.translator({"Arc": "Arc FR", "Arc Soul": "Âme", "Soul": "Âme seule", "+Grenade": "+Grenade FR"})
+    assert tr("_Arc_ Arc1 2Arc Arc") == "_Arc FR_ Arc1 2Arc Arc FR"   # _ does not bound a name (md italics), digits do
+    assert tr("Arc Souls") == "Arc FR Souls"   # the longest name fails its bound: the shorter one still applies
+    assert tr("Arc Soul Soul") == "Âme Âme seule"
+    assert tr("+Grenade") == "+Grenade FR"
+    assert tr("") == "" and tr(None) is None
+    assert tr("Arc\nSoul") == "Arc FR\nÂme seule"
+
+
+def test_translator_same_as_a_regex_of_every_name():
+    import random
+    import re
+    terms = {"Arc": "A", "Arc Soul": "B", "Soul": "C", "Soul of Arc": "D", "Ré": "E", "x-y": "F"}
+    full = {**{k.upper(): v.upper() for k, v in terms.items()}, **terms}
+    names = "|".join(map(re.escape, sorted(full, key=len, reverse=True)))
+    pattern = re.compile(rf"(?<![^\W_])(?:{names})(?![^\W_])")
+    tr = lexicon.translator(terms)
+    rng = random.Random(1)
+    pieces = [*full, " ", "_", "1", "é", "of", ",", "\n", "x", "-"]
+    for _ in range(2000):
+        text = "".join(rng.choice(pieces) for _ in range(rng.randint(1, 8)))
+        assert tr(text) == pattern.sub(lambda m: full[m.group(0)], text), text
+
+
 def test_load_caches_per_language_and_version(tmp_path, monkeypatch):
     monkeypatch.setattr(paths, "cache_dir", lambda: tmp_path)
     monkeypatch.setattr(lexicon, "build", lambda en, local: {"Helmet": "Casque"})

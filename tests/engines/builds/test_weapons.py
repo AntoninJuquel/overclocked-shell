@@ -1,4 +1,5 @@
 import json
+import os
 
 from shell.engines.builds import weapons
 from tests.sources.aegis.conftest import write_aegis
@@ -118,6 +119,13 @@ def test_wishlist_index_from_the_cached_list(isolated_dirs, monkeypatch):
     monkeypatch.setattr(wishlists, "fetch", lambda source, force=False: (path, False))
     rolls, by_name = weapons.load_wishlist_index({"7": "Rampage", "8": "Enhanced Kill Clip"})
     assert rolls[10] == [frozenset({"rampage", "kill clip"})] and by_name == {"adamantite": [10]}
+
+    names = {"7": "Rampage", "8": "Enhanced Kill Clip"}
+    assert weapons.load_wishlist_index(names)[0] is rolls   # unchanged: not read again
+    assert weapons.load_wishlist_index({"7": "Outlaw"})[0] is not rolls   # other names: other perks
+    path.write_text("//Other\ndimwishlist:item=11&perks=7\n", encoding="utf-8")
+    os.utime(path, ns=(1, 1))
+    assert 11 in weapons.load_wishlist_index(names)[0]   # the file changed
 
     def offline(source, force=False):
         raise OSError("offline")

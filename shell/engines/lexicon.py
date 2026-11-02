@@ -21,6 +21,8 @@ TABLES = [
     ("DestinyActivityDefinition", ()), ("DestinyActivityModifierDefinition", ()),
 ]
 LOCALE_DIR = Path(__file__).parent / "locale"
+_ALNUM = re.compile(r"[^\W_]")   # letters / digits bound a name, not _ (md italics)
+_NAME_START = re.compile(r"(?<![^\W_]).", re.S)
 
 
 def _names(table: dict, extra) -> dict[tuple[str, str], str]:
@@ -109,7 +111,8 @@ def current():
     global _current
     file = _file()
     try:
-        key = (file, file.stat().st_mtime_ns)
+        stat = file.stat()
+        key = (file, stat.st_mtime_ns, stat.st_size)   # two quick writes can share a timestamp
     except OSError:
         key = (file, None)
     if _current[0] != key:
@@ -122,9 +125,29 @@ def translator(terms: dict[str, str]):
     if not terms:
         return lambda t: t
     full = {**{k.upper(): v.upper() for k, v in terms.items()}, **terms}
-    alternatives = "|".join(map(re.escape, sorted(full, key=len, reverse=True)))
-    pattern = re.compile(rf"(?<![^\W_])(?:{alternatives})(?![^\W_])")   # letters / digits bound a name, not _ (md italics)
-    return lambda t: pattern.sub(lambda m: full[m.group(0)], t) if t else t
+    # not one regex of every name: with 40,000 of them it takes seconds to compile and tries them all at each position
+    lengths = defaultdict(set)
+    for k in full:
+        lengths[k[0]].add(len(k))
+    lengths = {c: sorted(v, reverse=True) for c, v in lengths.items()}
+
+    def translate(text):
+        if not text:
+            return text
+        out, done = [], 0
+        for start in _NAME_START.finditer(text):
+            p = start.start()
+            if p < done:
+                continue
+            for n in lengths.get(text[p], ()):
+                name = text[p:p + n]
+                if name in full and not _ALNUM.match(text, p + n):
+                    out += [text[done:p], full[name]]
+                    done = p + n
+                    break
+        out.append(text[done:])
+        return "".join(out)
+    return translate
 
 
 def lookup(terms: dict[str, str], names: list[str]) -> tuple[dict[str, str], list[str]]:

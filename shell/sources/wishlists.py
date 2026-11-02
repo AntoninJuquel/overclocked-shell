@@ -36,6 +36,9 @@ def fetch(source: str = DEFAULT_WISHLIST, force: bool = False) -> tuple[Path, bo
     cannot be downloaded (or is not a wishlist) and nothing is cached."""
     if not re.match(r"https?://", source):
         return Path(source), False
+    path = folder() / cache_name(source)
+    if path.exists() and not force:   # no read here: the list is 23 MB
+        return path, False
     path, stale, _ = _download(source, force)
     return path, stale
 

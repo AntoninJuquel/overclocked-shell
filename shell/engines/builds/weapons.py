@@ -87,10 +87,17 @@ def wishlist_perks(w, rolls, by_name):
     return set().union(*lines), any(perks <= opts for perks in lines)
 
 
+_wishlist = (None, None)   # ((path, st_mtime_ns, plug_names), index): the 23 MB list is only reread when it changed
+
+
 def load_wishlist_index(plug_names):
     """(rolls, rolls by weapon name) of the default wishlist; (None, None) when it cannot be had."""
+    global _wishlist
     try:
         path, _ = wishlists.fetch(wishlists.DEFAULT_WISHLIST)
+        key = (path, path.stat().st_mtime_ns, plug_names)
+        if _wishlist[0] == key:
+            return _wishlist[1]
         rolls, _, names = wishlists.load(path, plug_names)
     except (OSError, ValueError):
         return None, None
@@ -98,6 +105,7 @@ def load_wishlist_index(plug_names):
     for h, n in names.items():
         if n:
             by_name[wishlists.norm_weapon(n)].append(h)
+    _wishlist = (key, (rolls, by_name))
     return rolls, by_name
 
 

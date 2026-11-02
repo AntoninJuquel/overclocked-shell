@@ -68,12 +68,52 @@ def test_invalid_table_not_cached(tmp_path):
     assert not list((tmp_path / "manifest").rglob("*.json"))
 
 
-def test_table_keep_false_not_memoized(tmp_path):
+def test_table_keep_false_is_shared_then_freed_when_idle(tmp_path):
     m = Manifest(server("v1", []), tmp_path)
-    assert m.table("DestinyClassDefinition", keep=False)
+    first = m.table("DestinyClassDefinition", keep=False)
     assert m._tables == {}
-    m.table("DestinyClassDefinition")
-    assert "DestinyClassDefinition" in m._tables
+    assert m.table("DestinyClassDefinition", keep=False) is first
+    m._free_idle()
+    assert m.table("DestinyClassDefinition", keep=False) is not first
+    kept = m.table("DestinyClassDefinition")
+    assert m.table("DestinyClassDefinition") is kept
+    m._free_idle()
+    assert m.table("DestinyClassDefinition", keep=False) is kept
+
+
+def offline_client():
+    def handler(request):
+        raise httpx.ConnectError("down")
+    waits = []
+    return BungieClient(SETTINGS, None, http=httpx.Client(transport=httpx.MockTransport(handler)),
+                        sleep=waits.append), waits
+
+
+def test_offline_serves_the_local_version_without_waiting(tmp_path):
+    Manifest(server("v1", []), tmp_path).table("DestinyClassDefinition")
+    client, waits = offline_client()
+    m = Manifest(client, tmp_path)
+    assert m.version() == "v1"
+    assert m.table("DestinyClassDefinition")["1"]
+    assert waits == []
+
+
+def test_offline_without_local_copy_fails(tmp_path):
+    with pytest.raises(BungieApiError):
+        Manifest(offline_client()[0], tmp_path).version()
+
+
+def test_new_table_after_an_offline_start_uses_bungie_s_version(tmp_path):
+    Manifest(server("v1", []), tmp_path).table("DestinyClassDefinition")
+    m = Manifest(offline_client()[0], tmp_path)
+    assert m.version() == "v1"
+    (tmp_path / "manifest" / "v1" / "DestinyClassDefinition.json").unlink()
+    with pytest.raises(BungieApiError):   # still offline: the table cannot be had
+        m.table("DestinyClassDefinition")
+    m.client = server("v2", [])   # back online, and Bungie moved on
+    assert m.table("DestinyClassDefinition")["1"]
+    assert m.version() == "v2"
+    assert (tmp_path / "manifest" / "v2" / "DestinyClassDefinition.json").exists()
 
 
 def test_language_has_its_own_folder(tmp_path):
