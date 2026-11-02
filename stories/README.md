@@ -30,3 +30,4 @@ What the player gets and why it matters.
 | E8 Build sharing | PDF and shareable builds |
 | E9 Ultimate Bravery | Random rule-abiding builds |
 | E10 Raid companion | Mechanics on demand, step by step, with schematics |
+| E11 Ideas from DIM and co | What DIM and other open source tools do that Shell lacks and that is worth having |
